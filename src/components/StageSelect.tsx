@@ -24,6 +24,8 @@ export function StageSelect({
   onStart,
 }: Props) {
   const endlessIndex = stages.length;
+  const selectedIsEndless = selectedIndex === endlessIndex;
+  const selectedCanStart = selectedIsEndless ? endlessUnlocked : unlocked[selectedIndex];
   return (
     <div className="screen title-screen">
       <h1 className="title-logo">
@@ -37,13 +39,13 @@ export function StageSelect({
           const isLocked = !unlocked[index];
           return (
             <button
+              type="button"
               key={stage.id}
               className={`stage-card${index === selectedIndex ? ' stage-card-selected' : ''}${
                 isLocked ? ' stage-card-locked' : ''
               }`}
               onClick={() => {
                 onSelect(index);
-                if (!isLocked) onStart(index);
               }}
             >
               <span className="stage-card-character">{isLocked ? '🔒' : stage.character}</span>
@@ -70,12 +72,12 @@ export function StageSelect({
         })}
 
         <button
+          type="button"
           className={`stage-card stage-card-endless${
             selectedIndex === endlessIndex ? ' stage-card-selected' : ''
           }${endlessUnlocked ? '' : ' stage-card-locked'}`}
           onClick={() => {
             onSelect(endlessIndex);
-            if (endlessUnlocked) onStart(endlessIndex);
           }}
         >
           <span className="stage-card-character">{endlessUnlocked ? '🎪' : '🔒'}</span>
@@ -99,6 +101,15 @@ export function StageSelect({
         </button>
       </div>
 
+      <button
+        type="button"
+        className="start-button"
+        disabled={!selectedCanStart}
+        onClick={() => onStart(selectedIndex)}
+      >
+        {selectedCanStart ? 'このステージでスタート' : 'まだロック中'}
+      </button>
+
       <div className="title-howto">
         <p>
           ノーツが どうぶつのところに きたら <kbd>スペース</kbd> か タップ!
@@ -106,7 +117,7 @@ export function StageSelect({
           ⭐ は とくてん2ばい / 💣 は たたいちゃダメ / 10コンボで 🔥フィーバー!
         </p>
       </div>
-      <p className="title-hint">←→ でえらんで スペースキーでスタート</p>
+      <p className="title-hint">タップ / ←→ でえらんで スペースキーでスタート</p>
     </div>
   );
 }

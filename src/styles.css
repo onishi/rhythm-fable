@@ -68,11 +68,19 @@ body {
   font-weight: 500;
 }
 
+.title-screen {
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
 .stage-list {
-  display: flex;
+  display: grid;
   gap: 16px;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   justify-content: center;
+  width: min(100%, 1180px);
 }
 
 .stage-card {
@@ -82,12 +90,14 @@ body {
   align-items: center;
   gap: 6px;
   width: 220px;
+  min-height: 214px;
   padding: 20px 16px;
   border: 4px solid transparent;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink);
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.1s, border-color 0.1s;
 }
 
@@ -178,6 +188,14 @@ kbd {
   box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 60%, black);
 }
 
+.start-button:disabled,
+.sub-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.24);
+}
+
 .sub-button {
   font-size: 18px;
   background: #7a86ff;
@@ -191,6 +209,99 @@ kbd {
 .title-hint {
   font-size: 14px;
   opacity: 0.7;
+}
+
+@media (max-width: 760px) {
+  .screen {
+    gap: 14px;
+    padding: 18px 14px max(24px, env(safe-area-inset-bottom));
+  }
+
+  .title-logo {
+    font-size: 40px;
+    text-shadow: 3px 3px 0 #fff;
+  }
+
+  .title-subtitle {
+    font-size: 15px;
+  }
+
+  .stage-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .stage-card {
+    width: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 54px 1fr auto;
+    grid-template-areas:
+      "character title medals"
+      "character subtitle meta"
+      "character record record";
+    align-items: center;
+    justify-items: start;
+    gap: 4px 10px;
+    padding: 12px;
+    border-width: 3px;
+    border-radius: 14px;
+    text-align: left;
+  }
+
+  .stage-card:hover,
+  .stage-card-selected {
+    transform: none;
+  }
+
+  .stage-card-character {
+    grid-area: character;
+    font-size: 38px;
+  }
+
+  .stage-card-medals {
+    grid-area: medals;
+    min-height: 0;
+    font-size: 16px;
+    letter-spacing: 2px;
+  }
+
+  .stage-card-title {
+    grid-area: title;
+    font-size: 17px;
+  }
+
+  .stage-card-subtitle {
+    grid-area: subtitle;
+    min-height: 0;
+    font-size: 12px;
+  }
+
+  .stage-card-meta {
+    grid-area: meta;
+    font-size: 12px;
+    justify-self: end;
+  }
+
+  .stage-card-record {
+    grid-area: record;
+    min-height: 0;
+    font-size: 11px;
+  }
+
+  .start-button {
+    width: 100%;
+    max-width: 420px;
+    font-size: 18px;
+    padding: 12px 20px;
+  }
+
+  .title-howto {
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
 }
 
 /* ---------- ゲーム画面 ---------- */
