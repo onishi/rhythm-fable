@@ -1,12 +1,8 @@
 import {
   BEATS_PER_MEASURE,
-  COUNT_IN_BEATS,
-  FABLE_BPM,
-  FABLE_PATTERNS,
   beatToTime,
   buildBeats,
   createChart,
-  createFableChart,
 } from '../src/game/chart';
 
 describe('beatToTime', () => {
@@ -52,6 +48,16 @@ describe('createChart', () => {
     }
   });
 
+  it('starBeats に含まれる拍はスターノーツになる', () => {
+    const chart = createChart(120, [0, 2, 4], [2]);
+    expect(chart.notes.map((n) => n.kind)).toEqual(['normal', 'star', 'normal']);
+  });
+
+  it('starBeats を省略すると全て通常ノーツ', () => {
+    const chart = createChart(120, [0, 1]);
+    expect(chart.notes.every((n) => n.kind === 'normal')).toBe(true);
+  });
+
   it('最後のノーツのあとに終了余白がある', () => {
     const chart = createChart(120, [0, 7]);
     expect(chart.lengthSec).toBeGreaterThan(beatToTime(7, 120));
@@ -62,28 +68,5 @@ describe('createChart', () => {
     const chart = createChart(120, []);
     expect(chart.notes).toEqual([]);
     expect(chart.lengthSec).toBeGreaterThan(0);
-  });
-});
-
-describe('createFableChart', () => {
-  it('パターン定義どおりのノーツ数になる', () => {
-    const expected = FABLE_PATTERNS.reduce((sum, m) => sum + m.length, 0);
-    expect(createFableChart().notes).toHaveLength(expected);
-  });
-
-  it('最初のノーツはカウントイン後に始まる', () => {
-    const chart = createFableChart();
-    expect(chart.notes[0].beat).toBeGreaterThanOrEqual(COUNT_IN_BEATS);
-  });
-
-  it('デフォルトBPMが適用される', () => {
-    expect(createFableChart().bpm).toBe(FABLE_BPM);
-  });
-
-  it('全ノーツの時刻が単調増加する', () => {
-    const { notes } = createFableChart();
-    for (let i = 1; i < notes.length; i++) {
-      expect(notes[i].time).toBeGreaterThan(notes[i - 1].time);
-    }
   });
 });

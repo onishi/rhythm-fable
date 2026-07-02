@@ -2,11 +2,13 @@ import {
   BASE_SCORE,
   COMBO_BONUS_CAP,
   RANK_LABEL,
+  STAR_MULTIPLIER,
   applyJudgment,
   calcAccuracy,
   calcRank,
   comboBonus,
   createScoreState,
+  isPerfectPlay,
 } from '../src/game/score';
 
 describe('createScoreState', () => {
@@ -72,6 +74,38 @@ describe('applyJudgment', () => {
     applyJudgment(original, 'perfect');
     expect(original.score).toBe(0);
     expect(original.counts.perfect).toBe(0);
+  });
+
+  it('スターノーツは基礎点が2倍になる', () => {
+    const state = applyJudgment(createScoreState(), 'perfect', 'star');
+    expect(state.score).toBe(BASE_SCORE.perfect * STAR_MULTIPLIER + comboBonus(1));
+  });
+
+  it('スターノーツでもコンボボーナスは倍にならない', () => {
+    let state = applyJudgment(createScoreState(), 'perfect');
+    const before = state.score;
+    state = applyJudgment(state, 'good', 'star');
+    expect(state.score).toBe(before + BASE_SCORE.good * STAR_MULTIPLIER + comboBonus(2));
+  });
+
+  it('スターノーツのミスでも得点は増えない', () => {
+    const state = applyJudgment(createScoreState(), 'miss', 'star');
+    expect(state.score).toBe(0);
+  });
+});
+
+describe('isPerfectPlay', () => {
+  it('全ノーツ perfect なら true', () => {
+    expect(isPerfectPlay({ perfect: 10, good: 0, miss: 0 })).toBe(true);
+  });
+
+  it('good や miss が混ざると false', () => {
+    expect(isPerfectPlay({ perfect: 9, good: 1, miss: 0 })).toBe(false);
+    expect(isPerfectPlay({ perfect: 9, good: 0, miss: 1 })).toBe(false);
+  });
+
+  it('0ノーツは false', () => {
+    expect(isPerfectPlay({ perfect: 0, good: 0, miss: 0 })).toBe(false);
   });
 });
 

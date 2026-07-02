@@ -1,14 +1,17 @@
+import type { NoteKind } from './types';
+
 export interface Note {
   id: number;
   /** 曲頭からの拍数 */
   beat: number;
   /** 曲頭からの秒数 */
   time: number;
+  kind: NoteKind;
 }
 
 export interface Chart {
   bpm: number;
-  /** カウントイン込みの総拍数(メトロノーム再生用) */
+  /** カウントイン込みの総拍数(伴奏の再生用) */
   totalBeats: number;
   notes: Note[];
   /** ゲーム終了までの秒数 */
@@ -43,13 +46,22 @@ export function buildBeats(
   return beats;
 }
 
-/** 拍数の列から譜面を生成する */
-export function createChart(bpm: number, beats: readonly number[]): Chart {
+/**
+ * 拍数の列から譜面を生成する。
+ * starBeats に含まれる拍のノーツはスターノーツ(得点2倍)になる。
+ */
+export function createChart(
+  bpm: number,
+  beats: readonly number[],
+  starBeats: readonly number[] = [],
+): Chart {
+  const starSet = new Set(starBeats);
   const sorted = [...beats].sort((a, b) => a - b);
   const notes: Note[] = sorted.map((beat, id) => ({
     id,
     beat,
     time: beatToTime(beat, bpm),
+    kind: starSet.has(beat) ? 'star' : 'normal',
   }));
   const lastBeat = sorted.length > 0 ? sorted[sorted.length - 1] : 0;
   const endBeat = Math.ceil(lastBeat) + BEATS_PER_MEASURE;
@@ -59,34 +71,4 @@ export function createChart(bpm: number, beats: readonly number[]): Chart {
     notes,
     lengthSec: beatToTime(endBeat, bpm),
   };
-}
-
-/**
- * 「リズムFable」メインステージの譜面。
- * 各要素が1小節で、小節内の拍位置を列挙する(0.5 = 8分裏)。
- */
-export const FABLE_PATTERNS: readonly (readonly number[])[] = [
-  [0, 2],
-  [0, 2],
-  [0, 1, 2, 3],
-  [0],
-  [0, 2],
-  [0, 2, 3],
-  [0, 1, 2, 3],
-  [2],
-  [0, 1.5, 2],
-  [0, 1.5, 2],
-  [0, 1, 2, 3],
-  [0, 2, 3.5],
-  [0, 0.5, 1],
-  [2, 3],
-  [0, 1, 2, 3],
-  [0],
-];
-
-export const FABLE_BPM = 120;
-
-/** メインステージの譜面を生成する(カウントイン4拍のあと開始) */
-export function createFableChart(bpm = FABLE_BPM): Chart {
-  return createChart(bpm, buildBeats(FABLE_PATTERNS, COUNT_IN_BEATS));
 }

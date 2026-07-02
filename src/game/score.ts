@@ -1,4 +1,4 @@
-import type { Judgment } from './types';
+import type { Judgment, NoteKind } from './types';
 
 export interface ScoreState {
   score: number;
@@ -13,6 +13,9 @@ export const BASE_SCORE: Record<Judgment, number> = {
   good: 50,
   miss: 0,
 };
+
+/** スターノーツの得点倍率 */
+export const STAR_MULTIPLIER = 2;
 
 /** コンボによる加点(上限あり) */
 export const COMBO_BONUS_CAP = 50;
@@ -32,10 +35,15 @@ export function comboBonus(combo: number): number {
 }
 
 /** 判定を適用した新しいスコア状態を返す(元の状態は変更しない) */
-export function applyJudgment(state: ScoreState, judgment: Judgment): ScoreState {
+export function applyJudgment(
+  state: ScoreState,
+  judgment: Judgment,
+  kind: NoteKind = 'normal',
+): ScoreState {
   const combo = judgment === 'miss' ? 0 : state.combo + 1;
+  const base = BASE_SCORE[judgment] * (kind === 'star' ? STAR_MULTIPLIER : 1);
   return {
-    score: state.score + BASE_SCORE[judgment] + (judgment === 'miss' ? 0 : comboBonus(combo)),
+    score: state.score + base + (judgment === 'miss' ? 0 : comboBonus(combo)),
     combo,
     maxCombo: Math.max(state.maxCombo, combo),
     counts: { ...state.counts, [judgment]: state.counts[judgment] + 1 },
@@ -63,4 +71,9 @@ export function calcRank(accuracy: number): Rank {
   if (accuracy >= 0.85) return 'high';
   if (accuracy >= 0.6) return 'ok';
   return 'retry';
+}
+
+/** 全ノーツ「ピタッ!」ならパーフェクト */
+export function isPerfectPlay(counts: Record<Judgment, number>): boolean {
+  return counts.perfect > 0 && counts.good === 0 && counts.miss === 0;
 }
