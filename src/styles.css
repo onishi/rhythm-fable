@@ -222,6 +222,59 @@ kbd {
   text-shadow: 2px 2px 0 rgba(255, 255, 255, 0.6);
 }
 
+.hud-sub {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.groove-gauge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 280px;
+}
+
+.groove-label {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.8;
+}
+
+.groove-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.groove-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease-out;
+}
+
+.groove-fill[data-level='high'] {
+  background: linear-gradient(90deg, #ffd76a, #ffb400);
+}
+
+.groove-fill[data-level='ok'] {
+  background: linear-gradient(90deg, #8fe08f, #3aa14f);
+}
+
+.groove-fill[data-level='retry'] {
+  background: #9a9a9a;
+}
+
+.lives {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
 .count-in {
   position: absolute;
   top: 20%;
@@ -469,6 +522,90 @@ kbd {
   }
   to {
     transform: scale(1.1);
+  }
+}
+
+/* ---------- エンドレス ---------- */
+
+.speed-up {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  font-size: 40px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 3px 3px 0 var(--accent);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: speed-up-pop 2s ease-out forwards;
+}
+
+@keyframes speed-up-pop {
+  0% {
+    transform: translateX(-50%) scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    transform: translateX(-50%) scale(1.2);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
+  }
+}
+
+.stage-card-endless {
+  background: linear-gradient(160deg, #fff3c4, #ffd9ec);
+}
+
+.result-endless-best {
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+/* ---------- 観客 ---------- */
+
+.audience {
+  display: flex;
+  gap: 20px;
+  min-height: 40px;
+  align-items: flex-end;
+}
+
+.audience-member {
+  font-size: 30px;
+  line-height: 1;
+  animation-name: audience-bounce;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+@keyframes audience-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.audience-fever .audience-member {
+  animation-name: audience-jump;
+}
+
+@keyframes audience-jump {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-22px) scale(1.15) rotate(-8deg);
   }
 }
 

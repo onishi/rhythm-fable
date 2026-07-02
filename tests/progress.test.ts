@@ -1,10 +1,14 @@
 import {
   betterRank,
   isCleared,
+  isEndlessUnlocked,
   isNewRecord,
   isStageUnlocked,
+  loadEndlessRecord,
   loadRecords,
+  saveEndlessRecord,
   saveRecords,
+  updateEndlessRecord,
   updateRecord,
   type Records,
 } from '../src/game/progress';
@@ -169,5 +173,54 @@ describe('loadRecords / saveRecords', () => {
       },
     };
     expect(() => saveRecords(storage, {})).not.toThrow();
+  });
+});
+
+describe('エンドレス', () => {
+  it('全ステージクリアで解放される', () => {
+    let records: Records = {};
+    expect(isEndlessUnlocked(records, STAGE_IDS)).toBe(false);
+    records = updateRecord(records, 'forest', 100, 'ok');
+    records = updateRecord(records, 'moon', 100, 'high');
+    expect(isEndlessUnlocked(records, STAGE_IDS)).toBe(false);
+    records = updateRecord(records, 'festival', 100, 'ok');
+    expect(isEndlessUnlocked(records, STAGE_IDS)).toBe(true);
+  });
+
+  it('やりなおし評価ではクリア扱いにならない', () => {
+    let records: Records = {};
+    for (const id of STAGE_IDS) {
+      records = updateRecord(records, id, 100, 'retry');
+    }
+    expect(isEndlessUnlocked(records, STAGE_IDS)).toBe(false);
+  });
+
+  it('updateEndlessRecord はベストを保持する', () => {
+    let record = updateEndlessRecord(null, 1000, 3);
+    expect(record).toEqual({ bestScore: 1000, bestRound: 3, playCount: 1 });
+    record = updateEndlessRecord(record, 500, 5);
+    expect(record).toEqual({ bestScore: 1000, bestRound: 5, playCount: 2 });
+    record = updateEndlessRecord(record, 2000, 2);
+    expect(record).toEqual({ bestScore: 2000, bestRound: 5, playCount: 3 });
+  });
+
+  it('保存して読み込むと同じ内容になる', () => {
+    const storage = fakeStorage();
+    const record = updateEndlessRecord(null, 1500, 4);
+    saveEndlessRecord(storage, record);
+    expect(loadEndlessRecord(storage)).toEqual(record);
+  });
+
+  it('データがなければ null', () => {
+    expect(loadEndlessRecord(fakeStorage())).toBeNull();
+  });
+
+  it('壊れたデータは null として扱う', () => {
+    expect(loadEndlessRecord(fakeStorage({ 'rhythm-fable-endless-v1': '{oops' }))).toBeNull();
+    expect(
+      loadEndlessRecord(
+        fakeStorage({ 'rhythm-fable-endless-v1': JSON.stringify({ bestScore: 'abc' }) }),
+      ),
+    ).toBeNull();
   });
 });

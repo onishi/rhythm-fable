@@ -17,10 +17,17 @@ import {
 } from '../game/score';
 import { buildMusicEvents, type MusicEvent } from '../game/music';
 import { createStageChart, type StageDef } from '../game/stages';
+import {
+  ENDLESS_LIVES,
+  buildEndlessRoundSpec,
+  createEndlessRoundChart,
+  mulberry32,
+} from '../game/endless';
 import { GameAudio } from '../game/audio';
 import type { Judgment, NoteKind } from '../game/types';
 
 export type Phase = 'title' | 'playing' | 'result';
+export type GameMode = 'normal' | 'endless';
 
 /** ノーツがヒットゾーンに到達するまでの表示時間(拍) */
 const APPROACH_BEATS = 2;
@@ -51,15 +58,25 @@ export interface JudgmentEvent {
 
 export interface GameSnapshot {
   phase: Phase;
+  mode: GameMode;
+  /** 現在プレイ中のステージ(エンドレスではラウンドごとに変わる) */
+  stage: StageDef | null;
   timeSec: number;
   /** 現在の拍(小数) */
   beat: number;
+  bpm: number;
   /** カウントイン中の表示テキスト(それ以外は null) */
   countIn: string | null;
   notes: NoteView[];
   score: ScoreState;
   lastJudgment: JudgmentEvent | null;
   rank: Rank | null;
+  /** エンドレスの残りライフ(通常モードは null) */
+  lives: number | null;
+  /** エンドレスの現在ラウンド(0始まり) */
+  round: number;
+  /** ラウンド切り替え演出用(通常モードは null) */
+  speedUp: { bpm: number; seq: number } | null;
 }
 
 const COUNT_IN_TEXTS = ['いち', 'に', 'さん', 'ハイ!'];
@@ -67,19 +84,26 @@ const COUNT_IN_TEXTS = ['いち', 'に', 'さん', 'ハイ!'];
 function initialSnapshot(): GameSnapshot {
   return {
     phase: 'title',
+    mode: 'normal',
+    stage: null,
     timeSec: 0,
     beat: 0,
+    bpm: 120,
     countIn: null,
     notes: [],
     score: createScoreState(),
     lastJudgment: null,
     rank: null,
+    lives: null,
+    round: 0,
+    speedUp: null,
   };
 }
 
 export interface GameEngine {
   snapshot: GameSnapshot;
   start: (stage: StageDef) => void;
+  startEndless: () => void;
   hit: () => void;
   backToTitle: () => void;
 }
@@ -89,6 +113,7 @@ export function useGameEngine(): GameEngine {
 
   const audioRef = useRef<GameAudio | null>(null);
   const chartRef = useRef<Chart | null>(null);
+  const stageRef = useRef<StageDef | null>(null);
   const musicEventsRef = useRef<MusicEvent[]>([]);
   const musicIndexRef = useRef(0);
   const startAtRef = useRef(0);
@@ -98,6 +123,11 @@ export function useGameEngine(): GameEngine {
   const lastJudgmentRef = useRef<JudgmentEvent | null>(null);
   const rafRef = useRef(0);
   const phaseRef = useRef<Phase>('title');
+  const modeRef = useRef<GameMode>('normal');
+  const livesRef = useRef(ENDLESS_LIVES);
+  const roundRef = useRef(0);
+  const rngRef = useRef<() => number>(() => 0);
+  const speedUpRef = useRef<{ bpm: number; seq: number } | null>(null);
 
   const pushJudgment = useCallback(
     (type: Judgment, hint: TimingHint = null, bomb = false) => {
@@ -132,8 +162,11 @@ export function useGameEngine(): GameEngine {
 
   const finish = useCallback(() => {
     phaseRef.current = 'result';
-    const rank = calcRank(calcAccuracy(scoreRef.current.counts));
-    audioRef.current?.playResultJingle(rank);
+    const rank =
+      modeRef.current === 'normal'
+        ? calcRank(calcAccuracy(scoreRef.current.counts))
+        : null;
+    audioRef.current?.playResultJingle(rank ?? 'ok');
     setSnapshot((prev) => ({
       ...prev,
       phase: 'result',
@@ -141,13 +174,38 @@ export function useGameEngine(): GameEngine {
       countIn: null,
       score: scoreRef.current,
       rank,
+      lives: modeRef.current === 'endless' ? livesRef.current : null,
+      round: roundRef.current,
     }));
+  }, []);
+
+  /** エンドレスの次ラウンドをシームレスに始める */
+  const nextEndlessRound = useCallback((prevLengthSec: number) => {
+    roundRef.current += 1;
+    const round = roundRef.current;
+    const spec = buildEndlessRoundSpec(round, rngRef.current);
+    const chart = createEndlessRoundChart(spec, round);
+    stageRef.current = spec.stage;
+    chartRef.current = chart;
+    musicEventsRef.current = buildMusicEvents(chart, spec.stage.music, 0);
+    musicIndexRef.current = 0;
+    judgedRef.current = chart.notes.map(() => null);
+    startAtRef.current += prevLengthSec;
+    speedUpRef.current = { bpm: chart.bpm, seq: round };
+  }, []);
+
+  /** エンドレスでライフを1つ失う。ゲームオーバーなら true */
+  const loseLife = useCallback((): boolean => {
+    if (modeRef.current !== 'endless') return false;
+    livesRef.current -= 1;
+    return livesRef.current <= 0;
   }, []);
 
   const frame = useCallback(() => {
     const audio = audioRef.current;
     const chart = chartRef.current;
-    if (!audio || !chart || phaseRef.current !== 'playing') return;
+    const stage = stageRef.current;
+    if (!audio || !chart || !stage || phaseRef.current !== 'playing') return;
 
     const timeSec = audio.currentTime - startAtRef.current;
     const beat = (timeSec * chart.bpm) / 60;
@@ -163,6 +221,10 @@ export function useGameEngine(): GameEngine {
         applyToScore('miss', note.kind);
         pushJudgment('miss');
         audio.playHit('miss');
+        if (loseLife()) {
+          finish();
+          return;
+        }
       }
     }
 
@@ -178,36 +240,53 @@ export function useGameEngine(): GameEngine {
     }
 
     if (timeSec > chart.lengthSec) {
+      if (modeRef.current === 'endless') {
+        nextEndlessRound(chart.lengthSec);
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
       finish();
       return;
     }
 
+    // カウントイン表示は最初のラウンドのみ(エンドレスの2巡目以降は助走2拍だけ)
     const countInIndex = Math.floor(beat);
     setSnapshot({
       phase: 'playing',
+      mode: modeRef.current,
+      stage,
       timeSec,
       beat,
+      bpm: chart.bpm,
       countIn:
-        beat >= 0 && countInIndex < COUNT_IN_BEATS ? COUNT_IN_TEXTS[countInIndex] : null,
+        roundRef.current === 0 && beat >= 0 && countInIndex < COUNT_IN_BEATS
+          ? COUNT_IN_TEXTS[countInIndex]
+          : null,
       notes: buildNoteViews(chart, timeSec),
       score: scoreRef.current,
       lastJudgment: lastJudgmentRef.current,
       rank: null,
+      lives: modeRef.current === 'endless' ? livesRef.current : null,
+      round: roundRef.current,
+      speedUp: speedUpRef.current,
     });
     rafRef.current = requestAnimationFrame(frame);
-  }, [applyToScore, buildNoteViews, finish, pushJudgment]);
+  }, [applyToScore, buildNoteViews, finish, loseLife, nextEndlessRound, pushJudgment]);
 
-  const start = useCallback(
-    (stage: StageDef) => {
+  /** モード共通の初期化 */
+  const boot = useCallback(
+    (stage: StageDef, chart: Chart, musicEvents: MusicEvent[]) => {
       const audio = (audioRef.current ??= new GameAudio());
       audio.ensure();
-      const chart = createStageChart(stage);
+      stageRef.current = stage;
       chartRef.current = chart;
-      musicEventsRef.current = buildMusicEvents(chart, stage.music);
+      musicEventsRef.current = musicEvents;
       musicIndexRef.current = 0;
       judgedRef.current = chart.notes.map(() => null);
       scoreRef.current = createScoreState();
       lastJudgmentRef.current = null;
+      speedUpRef.current = null;
+      roundRef.current = 0;
       startAtRef.current = audio.currentTime + LEAD_IN_SEC;
       phaseRef.current = 'playing';
       cancelAnimationFrame(rafRef.current);
@@ -215,6 +294,24 @@ export function useGameEngine(): GameEngine {
     },
     [frame],
   );
+
+  const start = useCallback(
+    (stage: StageDef) => {
+      modeRef.current = 'normal';
+      const chart = createStageChart(stage);
+      boot(stage, chart, buildMusicEvents(chart, stage.music));
+    },
+    [boot],
+  );
+
+  const startEndless = useCallback(() => {
+    modeRef.current = 'endless';
+    livesRef.current = ENDLESS_LIVES;
+    rngRef.current = mulberry32(Date.now() >>> 0);
+    const spec = buildEndlessRoundSpec(0, rngRef.current);
+    const chart = createEndlessRoundChart(spec, 0);
+    boot(spec.stage, chart, buildMusicEvents(chart, spec.stage.music));
+  }, [boot]);
 
   const hit = useCallback(() => {
     const audio = audioRef.current;
@@ -241,6 +338,7 @@ export function useGameEngine(): GameEngine {
       applyToScore('miss', 'normal');
       pushJudgment('miss', null, true);
       audio.playExplosion();
+      if (loseLife()) finish();
       return;
     }
 
@@ -252,7 +350,8 @@ export function useGameEngine(): GameEngine {
     applyToScore(judgment, note.kind);
     pushJudgment(judgment, judgment === 'good' ? (offset < 0 ? 'early' : 'late') : null);
     audio.playHit(judgment, note.kind === 'star');
-  }, [applyToScore, pushJudgment]);
+    if (judgment === 'miss' && loseLife()) finish();
+  }, [applyToScore, finish, loseLife, pushJudgment]);
 
   const backToTitle = useCallback(() => {
     phaseRef.current = 'title';
@@ -262,5 +361,5 @@ export function useGameEngine(): GameEngine {
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
-  return { snapshot, start, hit, backToTitle };
+  return { snapshot, start, startEndless, hit, backToTitle };
 }

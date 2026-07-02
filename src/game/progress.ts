@@ -60,7 +60,37 @@ export function isStageUnlocked(
   return isCleared(records, stageIds[index - 1]);
 }
 
+/** エンドレスモードの記録 */
+export interface EndlessRecord {
+  bestScore: number;
+  /** 到達した最高ラウンド(1始まり) */
+  bestRound: number;
+  playCount: number;
+}
+
+/** エンドレスは全ステージクリアで解放 */
+export function isEndlessUnlocked(
+  records: Records,
+  stageIds: readonly string[],
+): boolean {
+  return stageIds.every((id) => isCleared(records, id));
+}
+
+/** エンドレスの結果を記録に反映する */
+export function updateEndlessRecord(
+  record: EndlessRecord | null,
+  score: number,
+  round: number,
+): EndlessRecord {
+  return {
+    bestScore: Math.max(record?.bestScore ?? 0, score),
+    bestRound: Math.max(record?.bestRound ?? 0, round),
+    playCount: (record?.playCount ?? 0) + 1,
+  };
+}
+
 const STORAGE_KEY = 'rhythm-fable-records-v1';
+const ENDLESS_KEY = 'rhythm-fable-endless-v1';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -102,6 +132,34 @@ export function loadRecords(storage: StorageLike): Records {
 export function saveRecords(storage: StorageLike, records: Records): void {
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    // 保存できなくてもゲームは続行できる
+  }
+}
+
+/** エンドレスの記録を読み込む。壊れたデータは無視する */
+export function loadEndlessRecord(storage: StorageLike): EndlessRecord | null {
+  try {
+    const raw = storage.getItem(ENDLESS_KEY);
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const { bestScore, bestRound, playCount } = parsed as Record<string, unknown>;
+    if (typeof bestScore !== 'number' || typeof bestRound !== 'number') return null;
+    return {
+      bestScore,
+      bestRound,
+      playCount: typeof playCount === 'number' ? playCount : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** エンドレスの記録を保存する */
+export function saveEndlessRecord(storage: StorageLike, record: EndlessRecord): void {
+  try {
+    storage.setItem(ENDLESS_KEY, JSON.stringify(record));
   } catch {
     // 保存できなくてもゲームは続行できる
   }

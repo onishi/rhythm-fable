@@ -25,6 +25,8 @@ export interface StageDef {
   stars: readonly (readonly number[])[];
   /** 小節ごとのおじゃまノーツ💣拍位置(patterns とは重ならないこと) */
   bombs: readonly (readonly number[])[];
+  /** 画面下で応援してくれる観客たち */
+  audience: readonly string[];
   /** true ならノーツがヒットゾーン手前で見えなくなる(暗記ステージ) */
   hideNotes?: boolean;
   music: StageMusic;
@@ -58,6 +60,7 @@ const forestConcert: StageDef = {
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [], [], [0]],
   bombs: NO_BOMBS_12,
+  audience: ['🐿️', '🐦', '🦔'],
   music: {
     // C -> C -> F -> G
     bassRoots: [48, 48, 53, 55],
@@ -100,6 +103,7 @@ const moonMochi: StageDef = {
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [3.5], [], [], [], [0]],
   bombs: [[], [], [], [], [], [], [], [2], [], [], [], [], [0], []],
+  audience: ['🐭', '🐹', '🐢'],
   music: {
     // Am -> Am -> Dm -> E
     bassRoots: [45, 45, 50, 52],
@@ -144,6 +148,7 @@ const festivalDrums: StageDef = {
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [], [], [3.5], [], [], [], [0]],
   bombs: [[], [], [], [], [], [], [], [2], [], [2.5], [], [], [], [], [], []],
+  audience: ['🐸', '🐵', '🐶'],
   music: {
     // Dm -> Dm -> Gm -> A
     bassRoots: [38, 38, 43, 45],
@@ -187,6 +192,7 @@ const phantomOrchestra: StageDef = {
   ],
   stars: [[], [], [], [], [], [], [0], [], [], [], [3], [], [], [0]],
   bombs: [[], [3], [], [], [], [], [3], [], [], [], [], [0], [], []],
+  audience: ['🦇', '🐺', '🕷️'],
   music: {
     // Em -> Em -> C -> D
     bassRoots: [40, 40, 48, 50],

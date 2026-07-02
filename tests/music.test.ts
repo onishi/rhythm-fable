@@ -90,4 +90,10 @@ describe('buildMusicEvents', () => {
   it('メロディは決定的(同じ入力なら同じ結果)', () => {
     expect(buildMusicEvents(chart, MUSIC)).toEqual(events);
   });
+
+  it('countInBeats=0 ならクリック音なしで頭からドラムが鳴る(エンドレス用)', () => {
+    const noCountIn = buildMusicEvents(chart, MUSIC, 0);
+    expect(noCountIn.some((e) => e.kind === 'count')).toBe(false);
+    expect(noCountIn.some((e) => e.kind === 'kick' && e.time === 0)).toBe(true);
+  });
 });

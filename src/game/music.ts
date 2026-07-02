@@ -36,23 +36,27 @@ export function midiToFreq(midi: number): number {
  * - メロディ: 各ノーツの拍に音階から決定的に選んだ音
  *   (おじゃまノーツにはメロディを付けない = 音でも区別できる)
  */
-export function buildMusicEvents(chart: Chart, music: StageMusic): MusicEvent[] {
+export function buildMusicEvents(
+  chart: Chart,
+  music: StageMusic,
+  countInBeats = COUNT_IN_BEATS,
+): MusicEvent[] {
   const { bpm, totalBeats, notes } = chart;
   const events: MusicEvent[] = [];
 
   for (let beat = 0; beat < totalBeats; beat++) {
-    if (beat < COUNT_IN_BEATS) {
+    if (beat < countInBeats) {
       events.push({ time: beatToTime(beat, bpm), kind: 'count' });
       continue;
     }
-    const inMeasure = (beat - COUNT_IN_BEATS) % BEATS_PER_MEASURE;
+    const inMeasure = (beat - countInBeats) % BEATS_PER_MEASURE;
     events.push({
       time: beatToTime(beat, bpm),
       kind: inMeasure % 2 === 0 ? 'kick' : 'snare',
     });
     events.push({ time: beatToTime(beat + 0.5, bpm), kind: 'hat' });
     if (inMeasure % 2 === 0) {
-      const measure = Math.floor((beat - COUNT_IN_BEATS) / BEATS_PER_MEASURE);
+      const measure = Math.floor((beat - countInBeats) / BEATS_PER_MEASURE);
       events.push({
         time: beatToTime(beat, bpm),
         kind: 'bass',

@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import type { GameSnapshot } from '../hooks/useGameEngine';
 import type { StageDef } from '../game/stages';
-import { isFever } from '../game/score';
+import { ENDLESS_LIVES } from '../game/endless';
+import { calcAccuracy, calcRank, isFever } from '../game/score';
 import { JUDGMENT_LABEL } from '../game/types';
 
 interface Props {
@@ -19,6 +20,9 @@ const SPAWN_X = 94;
 const VANISH_START = 0.45;
 /** 完全に見えなくなる progress */
 const VANISH_END = 0.25;
+
+/** 観客の最大数 */
+const MAX_AUDIENCE = 6;
 
 const HINT_LABEL = { early: 'はやい!', late: 'おそい!' } as const;
 
@@ -40,9 +44,17 @@ function noteOpacity(stage: StageDef, progress: number, kind: string, missed: bo
 }
 
 export function GameScreen({ snapshot, stage, onHit }: Props) {
-  const { notes, score, lastJudgment, countIn, beat } = snapshot;
+  const { notes, score, lastJudgment, countIn, beat, bpm, mode, lives, round, speedUp } =
+    snapshot;
   const beatPulse = 1 + 0.04 * Math.max(0, 1 - (beat % 1) * 3);
   const fever = isFever(score.combo);
+
+  const totalJudged = score.counts.perfect + score.counts.good + score.counts.miss;
+  const accuracy = totalJudged === 0 ? 1 : calcAccuracy(score.counts);
+  const grooveLevel = calcRank(accuracy);
+
+  const audienceCount = Math.min(MAX_AUDIENCE, 2 + Math.floor(score.combo / 4));
+  const beatSec = 60 / bpm;
 
   return (
     <div
@@ -55,14 +67,40 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
     >
       <header className="hud">
         <div className="hud-score">スコア {score.score}</div>
-        <div className="hud-stage">{stage.title}</div>
+        <div className="hud-stage">
+          {mode === 'endless' ? `🎪 ラウンド ${round + 1} ♪=${bpm}` : stage.title}
+        </div>
         <div className="hud-combo">
           {score.combo >= 2 ? `${fever ? '🔥' : ''}${score.combo} コンボ!` : ''}
         </div>
       </header>
 
+      <div className="hud-sub">
+        <div className="groove-gauge" title="ノリゲージ">
+          <span className="groove-label">ノリ</span>
+          <div className="groove-track">
+            <div
+              className="groove-fill"
+              data-level={grooveLevel}
+              style={{ width: `${accuracy * 100}%` }}
+            />
+          </div>
+        </div>
+        {mode === 'endless' && lives !== null && (
+          <div className="lives">
+            {'❤️'.repeat(lives)}
+            {'🖤'.repeat(Math.max(0, ENDLESS_LIVES - lives))}
+          </div>
+        )}
+      </div>
+
       {countIn !== null && <div className="count-in">{countIn}</div>}
       {fever && <div className="fever-banner">🔥 フィーバー!! 🔥</div>}
+      {mode === 'endless' && speedUp && (
+        <div key={`speed-${speedUp.seq}`} className="speed-up">
+          ⏫ スピードアップ! ♪={speedUp.bpm}
+        </div>
+      )}
 
       <div className="stage">
         <div className="lane" />
@@ -110,6 +148,21 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
             )}
           </div>
         )}
+      </div>
+
+      <div className={`audience${fever ? ' audience-fever' : ''}`}>
+        {Array.from({ length: audienceCount }, (_, i) => (
+          <span
+            key={i}
+            className="audience-member"
+            style={{
+              animationDuration: `${beatSec}s`,
+              animationDelay: `${(i % 3) * 0.12}s`,
+            }}
+          >
+            {stage.audience[i % stage.audience.length]}
+          </span>
+        ))}
       </div>
 
       <footer className="game-footer">

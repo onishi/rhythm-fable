@@ -14,6 +14,10 @@ describe('ステージ定義', () => {
     expect(stage.bpm).toBeGreaterThan(0);
   });
 
+  it.each(STAGES.map((s) => [s.title, s] as const))('%s: 観客がいる', (_, stage) => {
+    expect(stage.audience.length).toBeGreaterThan(0);
+  });
+
   it.each(STAGES.map((s) => [s.title, s] as const))(
     '%s: 全ノーツ拍位置が小節内(0以上4未満)',
     (_, stage) => {
