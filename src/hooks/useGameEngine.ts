@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BEATS_PER_MEASURE,
-  COUNT_IN_BEATS,
-  beatToTime,
-  createFableChart,
-  type Chart,
-} from '../game/chart';
+import { COUNT_IN_BEATS, beatToTime, type Chart } from '../game/chart';
 import { MISS_WINDOW, findTargetNoteIndex, judgeOffset } from '../game/judge';
 import {
   applyJudgment,
@@ -15,8 +9,10 @@ import {
   type Rank,
   type ScoreState,
 } from '../game/score';
+import { buildMusicEvents, type MusicEvent } from '../game/music';
+import { createStageChart, type StageDef } from '../game/stages';
 import { GameAudio } from '../game/audio';
-import type { Judgment } from '../game/types';
+import type { Judgment, NoteKind } from '../game/types';
 
 export type Phase = 'title' | 'playing' | 'result';
 
@@ -24,18 +20,23 @@ export type Phase = 'title' | 'playing' | 'result';
 const APPROACH_BEATS = 2;
 /** 演奏開始までのリードタイム(秒) */
 const LEAD_IN_SEC = 1.2;
-/** メトロノームの先読み時間(秒) */
-const TICK_LOOKAHEAD_SEC = 0.15;
+/** 伴奏の先読み時間(秒) */
+const LOOKAHEAD_SEC = 0.15;
 
 export interface NoteView {
   id: number;
   /** 1=出現位置, 0=ヒットゾーン, 負=通り過ぎ */
   progress: number;
+  kind: NoteKind;
   missed: boolean;
 }
 
+/** 「はやい/おそい」のヒント(perfect と自動ミスでは null) */
+export type TimingHint = 'early' | 'late' | null;
+
 export interface JudgmentEvent {
   type: Judgment;
+  hint: TimingHint;
   /** アニメーション再生成用の連番 */
   seq: number;
 }
@@ -70,7 +71,7 @@ function initialSnapshot(): GameSnapshot {
 
 export interface GameEngine {
   snapshot: GameSnapshot;
-  start: () => void;
+  start: (stage: StageDef) => void;
   hit: () => void;
   backToTitle: () => void;
 }
@@ -80,18 +81,19 @@ export function useGameEngine(): GameEngine {
 
   const audioRef = useRef<GameAudio | null>(null);
   const chartRef = useRef<Chart | null>(null);
+  const musicEventsRef = useRef<MusicEvent[]>([]);
+  const musicIndexRef = useRef(0);
   const startAtRef = useRef(0);
   const judgedRef = useRef<(Judgment | null)[]>([]);
   const scoreRef = useRef<ScoreState>(createScoreState());
-  const nextTickBeatRef = useRef(0);
   const judgmentSeqRef = useRef(0);
   const lastJudgmentRef = useRef<JudgmentEvent | null>(null);
   const rafRef = useRef(0);
   const phaseRef = useRef<Phase>('title');
 
-  const pushJudgment = useCallback((type: Judgment) => {
+  const pushJudgment = useCallback((type: Judgment, hint: TimingHint = null) => {
     judgmentSeqRef.current += 1;
-    lastJudgmentRef.current = { type, seq: judgmentSeqRef.current };
+    lastJudgmentRef.current = { type, hint, seq: judgmentSeqRef.current };
   }, []);
 
   const buildNoteViews = useCallback((chart: Chart, timeSec: number): NoteView[] => {
@@ -103,7 +105,7 @@ export function useGameEngine(): GameEngine {
       if (judgment !== null && judgment !== 'miss') continue;
       const progress = (note.time - timeSec) / approachSec;
       if (progress > 1.05 || progress < -0.4) continue;
-      views.push({ id: note.id, progress, missed: judgment === 'miss' });
+      views.push({ id: note.id, progress, kind: note.kind, missed: judgment === 'miss' });
     }
     return views;
   }, []);
@@ -134,23 +136,21 @@ export function useGameEngine(): GameEngine {
     for (const note of chart.notes) {
       if (judgedRef.current[note.id] === null && timeSec > note.time + MISS_WINDOW) {
         judgedRef.current[note.id] = 'miss';
-        scoreRef.current = applyJudgment(scoreRef.current, 'miss');
+        scoreRef.current = applyJudgment(scoreRef.current, 'miss', note.kind);
         pushJudgment('miss');
         audio.playHit('miss');
       }
     }
 
-    // メトロノームを先読みでスケジュールする
+    // 伴奏を先読みでスケジュールする
+    const events = musicEventsRef.current;
     while (
-      nextTickBeatRef.current < chart.totalBeats &&
-      beatToTime(nextTickBeatRef.current, chart.bpm) < timeSec + TICK_LOOKAHEAD_SEC
+      musicIndexRef.current < events.length &&
+      events[musicIndexRef.current].time < timeSec + LOOKAHEAD_SEC
     ) {
-      const tickBeat = nextTickBeatRef.current;
-      audio.playTick(
-        startAtRef.current + beatToTime(tickBeat, chart.bpm),
-        tickBeat % BEATS_PER_MEASURE === 0,
-      );
-      nextTickBeatRef.current += 1;
+      const event = events[musicIndexRef.current];
+      audio.playMusicEvent(event, startAtRef.current + event.time);
+      musicIndexRef.current += 1;
     }
 
     if (timeSec > chart.lengthSec) {
@@ -173,20 +173,24 @@ export function useGameEngine(): GameEngine {
     rafRef.current = requestAnimationFrame(frame);
   }, [buildNoteViews, finish, pushJudgment]);
 
-  const start = useCallback(() => {
-    const audio = (audioRef.current ??= new GameAudio());
-    audio.ensure();
-    const chart = createFableChart();
-    chartRef.current = chart;
-    judgedRef.current = chart.notes.map(() => null);
-    scoreRef.current = createScoreState();
-    nextTickBeatRef.current = 0;
-    lastJudgmentRef.current = null;
-    startAtRef.current = audio.currentTime + LEAD_IN_SEC;
-    phaseRef.current = 'playing';
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(frame);
-  }, [frame]);
+  const start = useCallback(
+    (stage: StageDef) => {
+      const audio = (audioRef.current ??= new GameAudio());
+      audio.ensure();
+      const chart = createStageChart(stage);
+      chartRef.current = chart;
+      musicEventsRef.current = buildMusicEvents(chart, stage.music);
+      musicIndexRef.current = 0;
+      judgedRef.current = chart.notes.map(() => null);
+      scoreRef.current = createScoreState();
+      lastJudgmentRef.current = null;
+      startAtRef.current = audio.currentTime + LEAD_IN_SEC;
+      phaseRef.current = 'playing';
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(frame);
+    },
+    [frame],
+  );
 
   const hit = useCallback(() => {
     const audio = audioRef.current;
@@ -200,16 +204,20 @@ export function useGameEngine(): GameEngine {
       judgedRef.current,
       timeSec,
     );
-    if (index === -1) return;
+    if (index === -1) {
+      audio.playEmptyTap();
+      return;
+    }
 
     const note = chart.notes[index];
-    const judgment = judgeOffset(timeSec - note.time);
+    const offset = timeSec - note.time;
+    const judgment = judgeOffset(offset);
     if (judgment === null) return;
 
     judgedRef.current[note.id] = judgment;
-    scoreRef.current = applyJudgment(scoreRef.current, judgment);
-    pushJudgment(judgment);
-    audio.playHit(judgment);
+    scoreRef.current = applyJudgment(scoreRef.current, judgment, note.kind);
+    pushJudgment(judgment, judgment === 'good' ? (offset < 0 ? 'early' : 'late') : null);
+    audio.playHit(judgment, note.kind === 'star');
   }, [pushJudgment]);
 
   const backToTitle = useCallback(() => {
