@@ -105,6 +105,13 @@ describe('buildEndlessRoundSpec', () => {
       expect(spec.stage.gameSystem ?? 'flow').toBe('flow');
     }
   });
+
+  it('逆走ステージは素材に選ばれない(途中で向きが変わると不公平)', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const spec = buildEndlessRoundSpec(0, mulberry32(seed));
+      expect(spec.stage.reverse ?? false).toBe(false);
+    }
+  });
 });
 
 describe('createEndlessRoundChart', () => {

@@ -38,6 +38,10 @@ export interface StageDef {
   audience: readonly string[];
   /** true ならノーツがヒットゾーン手前で見えなくなる(暗記ステージ) */
   hideNotes?: boolean;
+  /** true ならノーツがヒットゾーン直前まで見えない(とつぜんステージ) */
+  suddenNotes?: boolean;
+  /** true ならノーツが左から右へ流れる(逆走ステージ) */
+  reverse?: boolean;
   music: StageMusic;
   theme: StageTheme;
 }
@@ -267,12 +271,102 @@ const echoParrot: StageDef = {
   },
 };
 
+/** ステージ6: ノーツが左から右へ流れる逆走ステージ */
+const iceSkating: StageDef = {
+  id: 'ice',
+  title: 'こおりのスケート',
+  subtitle: 'ペンギンと ぎゃくそう スケーティング!',
+  character: '🐧',
+  noteEmoji: '❄️',
+  starEmoji: '💎',
+  bpm: 112,
+  reverse: true,
+  patterns: [
+    [0, 2],
+    [0, 2],
+    [0, 2, 3],
+    [0, 2, 3],
+    [0, 1.5, 2],
+    [0, 1.5, 2],
+    [0, 1, 2, 3],
+    [0],
+    [0, 2, 3.5],
+    [0, 1.5, 2, 3],
+    [0, 1, 2],
+    [0, 1.5, 2, 3.5],
+    [2, 3],
+    [0],
+  ],
+  stars: [[], [], [], [], [], [], [], [0], [3.5], [], [], [], [], [0]],
+  bombs: [[], [], [], [], [3], [], [], [2], [], [], [3.5], [], [0.5], []],
+  audience: ['🦭', '🐻‍❄️', '🐬'],
+  music: {
+    // G -> G -> C -> D
+    bassRoots: [43, 43, 48, 50],
+    // Gメジャーペンタトニック
+    scale: [55, 57, 59, 62, 64, 67],
+  },
+  theme: {
+    bgTop: '#c9ecff',
+    bgBottom: '#4a7fd6',
+    ink: '#123a66',
+    accent: '#ff7fa8',
+    lane: '#eef9ff',
+  },
+};
+
+/** ステージ7: ノーツが直前までかくれている「とつぜん」ステージ */
+const thunderLive: StageDef = {
+  id: 'thunder',
+  title: 'いなずまライブ',
+  subtitle: 'ノーツが とつぜん あらわれる ロックフェス',
+  character: '🦁',
+  noteEmoji: '🎸',
+  starEmoji: '⚡',
+  bpm: 132,
+  suddenNotes: true,
+  patterns: [
+    [0, 2],
+    [0, 2],
+    [0, 1, 2],
+    [0, 1, 2, 3],
+    [0, 1.5, 2],
+    [0, 1.5, 2, 3.5],
+    [0],
+    [0, 1, 2, 3],
+    [0, 0.5, 1, 2],
+    [0, 2, 3],
+    [0, 1, 1.5, 2],
+    [0, 1.5, 3],
+    [0, 1, 2, 3],
+    [0],
+  ],
+  stars: [[], [], [], [], [], [3.5], [0], [], [], [], [], [], [], [0]],
+  bombs: [[], [], [], [], [], [], [2], [], [], [], [], [], [], [2]],
+  audience: ['🐨', '🦅', '🐍'],
+  music: {
+    // Em -> Em -> Am -> B
+    bassRoots: [40, 40, 45, 47],
+    // Eマイナーペンタトニック
+    scale: [52, 55, 57, 59, 62, 64],
+  },
+  theme: {
+    bgTop: '#4e5d78',
+    bgBottom: '#1f2533',
+    ink: '#fff8dc',
+    accent: '#ffd60a',
+    lane: '#6d7f9e',
+  },
+};
+
 export const STAGES: readonly StageDef[] = [
   forestConcert,
   moonMochi,
   festivalDrums,
   phantomOrchestra,
   echoParrot,
+  iceSkating,
+  thunderLive,
 ];
 
 export const STAGE_IDS: readonly string[] = STAGES.map((s) => s.id);
