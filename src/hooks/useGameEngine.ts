@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { COUNT_IN_BEATS, beatToTime, type Chart } from '../game/chart';
-import { MISS_WINDOW, findTargetNoteIndex, judgeOffset } from '../game/judge';
+import {
+  MISS_WINDOW,
+  findTargetNoteIndex,
+  judgeOffset,
+  type NoteResult,
+} from '../game/judge';
 import {
   applyJudgment,
   calcAccuracy,
   calcRank,
   createScoreState,
+  isFever,
   type Rank,
   type ScoreState,
 } from '../game/score';
@@ -37,6 +43,8 @@ export type TimingHint = 'early' | 'late' | null;
 export interface JudgmentEvent {
   type: Judgment;
   hint: TimingHint;
+  /** おじゃまノーツを叩いてしまった */
+  bomb: boolean;
   /** アニメーション再生成用の連番 */
   seq: number;
 }
@@ -84,28 +92,40 @@ export function useGameEngine(): GameEngine {
   const musicEventsRef = useRef<MusicEvent[]>([]);
   const musicIndexRef = useRef(0);
   const startAtRef = useRef(0);
-  const judgedRef = useRef<(Judgment | null)[]>([]);
+  const judgedRef = useRef<(NoteResult | null)[]>([]);
   const scoreRef = useRef<ScoreState>(createScoreState());
   const judgmentSeqRef = useRef(0);
   const lastJudgmentRef = useRef<JudgmentEvent | null>(null);
   const rafRef = useRef(0);
   const phaseRef = useRef<Phase>('title');
 
-  const pushJudgment = useCallback((type: Judgment, hint: TimingHint = null) => {
-    judgmentSeqRef.current += 1;
-    lastJudgmentRef.current = { type, hint, seq: judgmentSeqRef.current };
+  const pushJudgment = useCallback(
+    (type: Judgment, hint: TimingHint = null, bomb = false) => {
+      judgmentSeqRef.current += 1;
+      lastJudgmentRef.current = { type, hint, bomb, seq: judgmentSeqRef.current };
+    },
+    [],
+  );
+
+  /** スコア反映とフィーバー突入音をまとめて行う */
+  const applyToScore = useCallback((judgment: Judgment, kind: NoteKind) => {
+    const before = scoreRef.current;
+    scoreRef.current = applyJudgment(before, judgment, kind);
+    if (!isFever(before.combo) && isFever(scoreRef.current.combo)) {
+      audioRef.current?.playFeverStart();
+    }
   }, []);
 
   const buildNoteViews = useCallback((chart: Chart, timeSec: number): NoteView[] => {
     const approachSec = beatToTime(APPROACH_BEATS, chart.bpm);
     const views: NoteView[] = [];
     for (const note of chart.notes) {
-      const judgment = judgedRef.current[note.id];
-      // ヒット済みノーツは消す。ミスは流れ去るまで表示する
-      if (judgment !== null && judgment !== 'miss') continue;
+      const result = judgedRef.current[note.id];
+      // ヒット済み・回避済みノーツは消す。ミスは流れ去るまで表示する
+      if (result !== null && result !== 'miss') continue;
       const progress = (note.time - timeSec) / approachSec;
       if (progress > 1.05 || progress < -0.4) continue;
-      views.push({ id: note.id, progress, kind: note.kind, missed: judgment === 'miss' });
+      views.push({ id: note.id, progress, kind: note.kind, missed: result === 'miss' });
     }
     return views;
   }, []);
@@ -132,11 +152,15 @@ export function useGameEngine(): GameEngine {
     const timeSec = audio.currentTime - startAtRef.current;
     const beat = (timeSec * chart.bpm) / 60;
 
-    // 通り過ぎたノーツをミス確定にする
+    // 通り過ぎたノーツを処理する(通常=ミス、おじゃま=回避成功)
     for (const note of chart.notes) {
       if (judgedRef.current[note.id] === null && timeSec > note.time + MISS_WINDOW) {
+        if (note.kind === 'bomb') {
+          judgedRef.current[note.id] = 'avoided';
+          continue;
+        }
         judgedRef.current[note.id] = 'miss';
-        scoreRef.current = applyJudgment(scoreRef.current, 'miss', note.kind);
+        applyToScore('miss', note.kind);
         pushJudgment('miss');
         audio.playHit('miss');
       }
@@ -171,7 +195,7 @@ export function useGameEngine(): GameEngine {
       rank: null,
     });
     rafRef.current = requestAnimationFrame(frame);
-  }, [buildNoteViews, finish, pushJudgment]);
+  }, [applyToScore, buildNoteViews, finish, pushJudgment]);
 
   const start = useCallback(
     (stage: StageDef) => {
@@ -210,15 +234,25 @@ export function useGameEngine(): GameEngine {
     }
 
     const note = chart.notes[index];
+
+    // おじゃまノーツを叩いてしまった!
+    if (note.kind === 'bomb') {
+      judgedRef.current[note.id] = 'miss';
+      applyToScore('miss', 'normal');
+      pushJudgment('miss', null, true);
+      audio.playExplosion();
+      return;
+    }
+
     const offset = timeSec - note.time;
     const judgment = judgeOffset(offset);
     if (judgment === null) return;
 
     judgedRef.current[note.id] = judgment;
-    scoreRef.current = applyJudgment(scoreRef.current, judgment, note.kind);
+    applyToScore(judgment, note.kind);
     pushJudgment(judgment, judgment === 'good' ? (offset < 0 ? 'early' : 'late') : null);
     audio.playHit(judgment, note.kind === 'star');
-  }, [pushJudgment]);
+  }, [applyToScore, pushJudgment]);
 
   const backToTitle = useCallback(() => {
     phaseRef.current = 'title';

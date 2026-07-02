@@ -4,6 +4,7 @@ import { StageSelect } from './components/StageSelect';
 import { GameScreen } from './components/GameScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { STAGES, STAGE_IDS } from './game/stages';
+import { isPerfectPlay } from './game/score';
 import {
   isNewRecord,
   isStageUnlocked,
@@ -49,7 +50,13 @@ export function App() {
     resultProcessedRef.current = true;
     const newRecord = isNewRecord(records, stage.id, snapshot.score.score);
     const unlockedBefore = isStageUnlocked(records, STAGE_IDS, stageIndex + 1);
-    const next = updateRecord(records, stage.id, snapshot.score.score, snapshot.rank);
+    const next = updateRecord(
+      records,
+      stage.id,
+      snapshot.score.score,
+      snapshot.rank,
+      isPerfectPlay(snapshot.score.counts),
+    );
     const unlockedAfter = isStageUnlocked(next, STAGE_IDS, stageIndex + 1);
     setRecords(next);
     saveRecords(window.localStorage, next);

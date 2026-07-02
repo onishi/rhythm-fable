@@ -42,6 +42,10 @@ export function StageSelect({
               }}
             >
               <span className="stage-card-character">{isLocked ? '🔒' : stage.character}</span>
+              <span className="stage-card-medals">
+                {record?.bestRank === 'high' ? '🏆' : ''}
+                {record && record.perfectCount > 0 ? '✨' : ''}
+              </span>
               <span className="stage-card-title">{stage.title}</span>
               <span className="stage-card-subtitle">
                 {isLocked ? 'まえのステージを クリアしよう' : stage.subtitle}
@@ -65,7 +69,7 @@ export function StageSelect({
         <p>
           ノーツが どうぶつのところに きたら <kbd>スペース</kbd> か タップ!
           <br />
-          ⭐ の スターノーツは とくてん 2ばい!
+          ⭐ は とくてん2ばい / 💣 は たたいちゃダメ / 10コンボで 🔥フィーバー!
         </p>
       </div>
       <p className="title-hint">←→ でえらんで スペースキーでスタート</p>

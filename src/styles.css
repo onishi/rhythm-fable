@@ -110,6 +110,12 @@ body {
   line-height: 1;
 }
 
+.stage-card-medals {
+  font-size: 18px;
+  min-height: 1.2em;
+  letter-spacing: 4px;
+}
+
 .stage-card-title {
   font-size: 20px;
   font-weight: 800;
@@ -334,6 +340,22 @@ kbd {
   }
 }
 
+.note-bomb {
+  font-size: 42px;
+  animation: bomb-wobble 0.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 60, 60, 0.8));
+}
+
+@keyframes bomb-wobble {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(-10deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(10deg) scale(1.08);
+  }
+}
+
 .note-missed {
   opacity: 0.35;
   filter: grayscale(1);
@@ -370,6 +392,12 @@ kbd {
   text-shadow: 2px 2px 0 #fff;
 }
 
+.judgment-bomb {
+  color: #ff3c3c;
+  text-shadow: 2px 2px 0 #fff;
+  font-size: 34px;
+}
+
 @keyframes judgment-pop {
   0% {
     transform: translateX(-50%) translateY(10px) scale(0.6);
@@ -392,6 +420,56 @@ kbd {
   font-size: 16px;
   opacity: 0.7;
   padding-bottom: 8px;
+}
+
+/* ---------- フィーバー ---------- */
+
+.fever-banner {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow:
+    2px 2px 0 #ff5722,
+    -2px -2px 0 #ff9800;
+  animation: fever-pulse 0.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes fever-pulse {
+  from {
+    transform: translateX(-50%) scale(1);
+  }
+  to {
+    transform: translateX(-50%) scale(1.12);
+  }
+}
+
+.fever .lane {
+  box-shadow:
+    0 0 16px 4px color-mix(in srgb, var(--accent) 70%, transparent),
+    inset 0 3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.fever .hit-zone {
+  border-style: solid;
+  box-shadow: 0 0 24px 6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.fever .hud-combo {
+  animation: fever-pulse-inline 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes fever-pulse-inline {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.1);
+  }
 }
 
 /* ---------- リザルト ---------- */
