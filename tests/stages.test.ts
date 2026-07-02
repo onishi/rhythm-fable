@@ -2,8 +2,8 @@ import { BEATS_PER_MEASURE, COUNT_IN_BEATS } from '../src/game/chart';
 import { STAGES, STAGE_IDS, createStageChart } from '../src/game/stages';
 
 describe('ステージ定義', () => {
-  it('4ステージある', () => {
-    expect(STAGES).toHaveLength(4);
+  it('5ステージある', () => {
+    expect(STAGES).toHaveLength(5);
   });
 
   it('IDが一意', () => {
@@ -60,6 +60,26 @@ describe('ステージ定義', () => {
       }
     },
   );
+
+  it('echoステージはコール小節(偶数)が空でレスポンス小節(奇数)にノーツがある', () => {
+    const echoStages = STAGES.filter((s) => s.gameSystem === 'echo');
+    expect(echoStages.length).toBeGreaterThan(0);
+    for (const stage of echoStages) {
+      stage.patterns.forEach((pattern, measure) => {
+        if (measure % 2 === 0) {
+          expect(pattern).toHaveLength(0);
+        } else {
+          expect(pattern.length).toBeGreaterThan(0);
+        }
+      });
+    }
+  });
+
+  it('echoステージにはおじゃまノーツがない(混乱防止)', () => {
+    for (const stage of STAGES.filter((s) => s.gameSystem === 'echo')) {
+      expect(stage.bombs.every((m) => m.length === 0)).toBe(true);
+    }
+  });
 
   it.each(STAGES.map((s) => [s.title, s] as const))(
     '%s: おじゃまノーツは通常ノーツから0.5拍以上離れている(誤爆防止)',

@@ -299,7 +299,12 @@ export function useGameEngine(): GameEngine {
     (stage: StageDef) => {
       modeRef.current = 'normal';
       const chart = createStageChart(stage);
-      boot(stage, chart, buildMusicEvents(chart, stage.music));
+      const melodyMode = stage.gameSystem === 'echo' ? 'callEcho' : 'onNote';
+      boot(
+        stage,
+        chart,
+        buildMusicEvents(chart, stage.music, COUNT_IN_BEATS, melodyMode),
+      );
     },
     [boot],
   );

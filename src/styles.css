@@ -568,6 +568,129 @@ kbd {
   opacity: 0.85;
 }
 
+/* ---------- コール&レスポンス(echo) ---------- */
+
+.echo-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: auto;
+  min-height: 320px;
+}
+
+.echo-teacher {
+  font-size: 72px;
+  line-height: 1;
+}
+
+.echo-teacher[data-calling='true'] {
+  animation: echo-hop 0.3s ease-out;
+}
+
+.echo-notes {
+  display: flex;
+  gap: 18px;
+  min-height: 44px;
+  align-items: center;
+}
+
+.echo-note {
+  font-size: 38px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.echo-note-on {
+  opacity: 1;
+  transform: scale(1);
+  animation: echo-note-pop 0.25s ease-out;
+}
+
+.echo-note-ghost {
+  opacity: 0.35;
+  transform: scale(0.9);
+}
+
+@keyframes echo-note-pop {
+  from {
+    transform: scale(1.6);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.echo-phase {
+  font-size: 26px;
+  font-weight: 800;
+  min-height: 1.3em;
+  text-shadow: 2px 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.beat-dots {
+  display: flex;
+  gap: 14px;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  transition: transform 0.05s;
+}
+
+.dot-on {
+  background: var(--accent);
+  transform: scale(1.35);
+}
+
+.echo-player {
+  font-size: 52px;
+  line-height: 1;
+}
+
+.echo-player[data-judgment='perfect'],
+.echo-player[data-judgment='good'] {
+  animation: echo-hop 0.3s ease-out;
+}
+
+.echo-player[data-judgment='miss'] {
+  animation: echo-shake 0.3s ease-in-out;
+}
+
+/* 静的配置の echo キャラ用(絶対配置用の chara-hop とは別物) */
+@keyframes echo-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-16px) rotate(-8deg);
+  }
+}
+
+@keyframes echo-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-6px);
+  }
+}
+
+.echo-stage .judgment-label {
+  top: 55%;
+  left: 66%;
+}
+
 /* ---------- 観客 ---------- */
 
 .audience {

@@ -15,6 +15,13 @@ export interface StageMusic {
 
 export type MusicEventKind = 'count' | 'kick' | 'snare' | 'hat' | 'bass' | 'melody';
 
+/**
+ * メロディの鳴らし方。
+ * - onNote: 各ノーツの拍で鳴らす(標準)
+ * - callEcho: 各ノーツの1小節前で鳴らす(コール&レスポンスのお手本)
+ */
+export type MelodyMode = 'onNote' | 'callEcho';
+
 export interface MusicEvent {
   /** 曲頭からの秒数 */
   time: number;
@@ -40,6 +47,7 @@ export function buildMusicEvents(
   chart: Chart,
   music: StageMusic,
   countInBeats = COUNT_IN_BEATS,
+  melodyMode: MelodyMode = 'onNote',
 ): MusicEvent[] {
   const { bpm, totalBeats, notes } = chart;
   const events: MusicEvent[] = [];
@@ -65,11 +73,17 @@ export function buildMusicEvents(
     }
   }
 
+  const melodyShift =
+    melodyMode === 'callEcho' ? beatToTime(BEATS_PER_MEASURE, bpm) : 0;
   notes
     .filter((note) => note.kind !== 'bomb')
     .forEach((note, index) => {
       const degree = (index * 2 + Math.floor(note.beat)) % music.scale.length;
-      events.push({ time: note.time, kind: 'melody', midi: music.scale[degree] });
+      events.push({
+        time: note.time - melodyShift,
+        kind: 'melody',
+        midi: music.scale[degree],
+      });
     });
 
   return events.sort((a, b) => a.time - b.time);

@@ -52,7 +52,9 @@ export function buildEndlessRoundSpec(
   rng: () => number,
   stages: readonly StageDef[] = STAGES,
 ): EndlessRoundSpec {
-  const stage = stages[Math.floor(rng() * stages.length)];
+  // コール&レスポンス型はノーツが流れないため素材から除外する
+  const pool = stages.filter((s) => (s.gameSystem ?? 'flow') === 'flow');
+  const stage = pool[Math.floor(rng() * pool.length)];
   const span = Math.min(ENDLESS_MEASURES_PER_ROUND, stage.patterns.length);
   const maxStart = stage.patterns.length - span;
   const start = Math.floor(rng() * (maxStart + 1));

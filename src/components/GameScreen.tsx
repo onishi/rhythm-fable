@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import type { GameSnapshot } from '../hooks/useGameEngine';
+import type { GameSnapshot, JudgmentEvent } from '../hooks/useGameEngine';
 import type { StageDef } from '../game/stages';
+import { BEATS_PER_MEASURE, COUNT_IN_BEATS } from '../game/chart';
 import { ENDLESS_LIVES } from '../game/endless';
 import { calcAccuracy, calcRank, isFever } from '../game/score';
 import { JUDGMENT_LABEL } from '../game/types';
@@ -41,6 +42,91 @@ function noteOpacity(stage: StageDef, progress: number, kind: string, missed: bo
   // (おじゃまノーツとミスして流れたノーツは見えたまま)
   if (!stage.hideNotes || kind === 'bomb' || missed || progress < 0) return undefined;
   return Math.max(0, Math.min(1, (progress - VANISH_END) / (VANISH_START - VANISH_END)));
+}
+
+/** コール&レスポンス(echo)ステージの中央パネル */
+function EchoStage({
+  stage,
+  beat,
+  lastJudgment,
+}: {
+  stage: StageDef;
+  beat: number;
+  lastJudgment: JudgmentEvent | null;
+}) {
+  const musicBeat = beat - COUNT_IN_BEATS;
+  const measure = Math.floor(musicBeat / BEATS_PER_MEASURE);
+  const inMeasure = musicBeat - measure * BEATS_PER_MEASURE;
+  const started = measure >= 0;
+  const isCall = started && measure % 2 === 0;
+  const patternIndex = isCall ? measure + 1 : measure;
+  const pattern =
+    started && patternIndex >= 0 && patternIndex < stage.patterns.length
+      ? stage.patterns[patternIndex]
+      : [];
+  const starOffsets =
+    started && patternIndex >= 0 && patternIndex < stage.stars.length
+      ? stage.stars[patternIndex]
+      : [];
+  // コール中はお手本が鳴った音符から順に表示、レスポンス中は全部薄く見せる
+  const poppedCount = isCall
+    ? pattern.filter((o) => o <= inMeasure + 0.001).length
+    : pattern.length;
+
+  return (
+    <div className="stage echo-stage">
+      <div
+        className="echo-teacher"
+        key={isCall ? `call-${measure}-${poppedCount}` : `idle-${measure}`}
+        data-calling={isCall && poppedCount > 0}
+      >
+        {stage.character}
+      </div>
+      <div className="echo-notes">
+        {pattern.map((offset, i) => (
+          <span
+            key={`${patternIndex}-${i}`}
+            className={`echo-note${i < poppedCount ? ' echo-note-on' : ''}${
+              isCall ? '' : ' echo-note-ghost'
+            }`}
+          >
+            {starOffsets.includes(offset) ? stage.starEmoji : stage.noteEmoji}
+          </span>
+        ))}
+      </div>
+      <div className="echo-phase">
+        {!started ? '' : isCall ? '🎧 よくきいて!' : '🎤 きみのばん!'}
+      </div>
+      <div className="beat-dots">
+        {Array.from({ length: BEATS_PER_MEASURE }, (_, d) => (
+          <span
+            key={d}
+            className={`dot${started && d === Math.floor(inMeasure) ? ' dot-on' : ''}`}
+          />
+        ))}
+      </div>
+      <div
+        className="echo-player"
+        key={lastJudgment ? `player-${lastJudgment.seq}` : 'player'}
+        data-judgment={lastJudgment?.type ?? 'none'}
+      >
+        🐥
+      </div>
+      {lastJudgment && (
+        <div
+          key={`judge-${lastJudgment.seq}`}
+          className={`judgment-label judgment-${lastJudgment.type}`}
+        >
+          {JUDGMENT_LABEL[lastJudgment.type]}
+          {lastJudgment.hint && (
+            <span className="judgment-hint">
+              {HINT_LABEL[lastJudgment.hint]}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function GameScreen({ snapshot, stage, onHit }: Props) {
@@ -102,53 +188,57 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
         </div>
       )}
 
-      <div className="stage">
-        <div className="lane" />
-        <div
-          className="hit-zone"
-          style={{ left: `${HIT_X}%`, transform: `translate(-50%, -50%) scale(${beatPulse})` }}
-        />
-        <div
-          className="character"
-          style={{ left: `${HIT_X}%` }}
-          key={lastJudgment ? `chara-${lastJudgment.seq}` : 'chara'}
-          data-judgment={lastJudgment?.type ?? 'none'}
-        >
-          {stage.character}
-        </div>
-        {notes.map((note) => (
+      {stage.gameSystem === 'echo' ? (
+        <EchoStage stage={stage} beat={beat} lastJudgment={lastJudgment} />
+      ) : (
+        <div className="stage">
+          <div className="lane" />
           <div
-            key={note.id}
-            className={`note${note.missed ? ' note-missed' : ''}${
-              note.kind === 'star' ? ' note-star' : ''
-            }${note.kind === 'bomb' ? ' note-bomb' : ''}`}
-            style={{
-              left: `${HIT_X + note.progress * (SPAWN_X - HIT_X)}%`,
-              opacity: noteOpacity(stage, note.progress, note.kind, note.missed),
-            }}
-          >
-            {note.kind === 'star'
-              ? stage.starEmoji
-              : note.kind === 'bomb'
-                ? '💣'
-                : stage.noteEmoji}
-          </div>
-        ))}
-        {lastJudgment && (
+            className="hit-zone"
+            style={{ left: `${HIT_X}%`, transform: `translate(-50%, -50%) scale(${beatPulse})` }}
+          />
           <div
-            key={`judge-${lastJudgment.seq}`}
-            className={`judgment-label judgment-${lastJudgment.type}${
-              lastJudgment.bomb ? ' judgment-bomb' : ''
-            }`}
+            className="character"
             style={{ left: `${HIT_X}%` }}
+            key={lastJudgment ? `chara-${lastJudgment.seq}` : 'chara'}
+            data-judgment={lastJudgment?.type ?? 'none'}
           >
-            {lastJudgment.bomb ? '💥 ドカーン!' : JUDGMENT_LABEL[lastJudgment.type]}
-            {lastJudgment.hint && (
-              <span className="judgment-hint">{HINT_LABEL[lastJudgment.hint]}</span>
-            )}
+            {stage.character}
           </div>
-        )}
-      </div>
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              className={`note${note.missed ? ' note-missed' : ''}${
+                note.kind === 'star' ? ' note-star' : ''
+              }${note.kind === 'bomb' ? ' note-bomb' : ''}`}
+              style={{
+                left: `${HIT_X + note.progress * (SPAWN_X - HIT_X)}%`,
+                opacity: noteOpacity(stage, note.progress, note.kind, note.missed),
+              }}
+            >
+              {note.kind === 'star'
+                ? stage.starEmoji
+                : note.kind === 'bomb'
+                  ? '💣'
+                  : stage.noteEmoji}
+            </div>
+          ))}
+          {lastJudgment && (
+            <div
+              key={`judge-${lastJudgment.seq}`}
+              className={`judgment-label judgment-${lastJudgment.type}${
+                lastJudgment.bomb ? ' judgment-bomb' : ''
+              }`}
+              style={{ left: `${HIT_X}%` }}
+            >
+              {lastJudgment.bomb ? '💥 ドカーン!' : JUDGMENT_LABEL[lastJudgment.type]}
+              {lastJudgment.hint && (
+                <span className="judgment-hint">{HINT_LABEL[lastJudgment.hint]}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`audience${fever ? ' audience-fever' : ''}`}>
         {Array.from({ length: audienceCount }, (_, i) => (
@@ -166,9 +256,11 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
       </div>
 
       <footer className="game-footer">
-        {stage.hideNotes
-          ? 'きえても リズムは つづいてる! 💣 は たたかない!'
-          : 'スペース か タップで たたく! 💣 は たたかない!'}
+        {stage.gameSystem === 'echo'
+          ? 'おてほんの つぎの小節で おなじリズムを たたこう!'
+          : stage.hideNotes
+            ? 'きえても リズムは つづいてる! 💣 は たたかない!'
+            : 'スペース か タップで たたく! 💣 は たたかない!'}
       </footer>
     </div>
   );

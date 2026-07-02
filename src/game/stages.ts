@@ -10,6 +10,13 @@ export interface StageTheme {
   lane: string;
 }
 
+/**
+ * ゲームシステムの種類。
+ * - flow: ノーツが流れてきてヒットゾーンで叩く(標準)
+ * - echo: お手本の1小節を聴いて、次の1小節で同じリズムを叩き返す(コール&レスポンス)
+ */
+export type GameSystem = 'flow' | 'echo';
+
 export interface StageDef {
   id: string;
   title: string;
@@ -19,6 +26,8 @@ export interface StageDef {
   noteEmoji: string;
   starEmoji: string;
   bpm: number;
+  /** 省略時は 'flow' */
+  gameSystem?: GameSystem;
   /** 小節ごとのノーツ拍位置(0.5 = 8分裏) */
   patterns: readonly (readonly number[])[];
   /** 小節ごとのスターノーツ拍位置(patterns の部分集合であること) */
@@ -208,11 +217,62 @@ const phantomOrchestra: StageDef = {
   },
 };
 
+/**
+ * ステージ5: コール&レスポンスの「まねっこ」ステージ。
+ * 偶数小節(コール)はお手本が鳴るだけでノーツなし、
+ * 奇数小節(レスポンス)に同じリズムのノーツを置く。
+ */
+const echoParrot: StageDef = {
+  id: 'parrot',
+  title: 'まねっこパロット',
+  subtitle: 'おてほんを きいて そのまま かえそう!',
+  character: '🦜',
+  noteEmoji: '🎤',
+  starEmoji: '🌈',
+  bpm: 108,
+  gameSystem: 'echo',
+  patterns: [
+    [],
+    [0, 2],
+    [],
+    [0, 2],
+    [],
+    [0, 1, 2],
+    [],
+    [0, 1, 2],
+    [],
+    [0, 1.5, 2],
+    [],
+    [0, 1.5, 2],
+    [],
+    [0, 1, 2, 3],
+    [],
+    [0, 1.5, 2, 3],
+  ],
+  stars: [[], [], [], [], [], [], [], [0], [], [], [], [], [], [], [], [3]],
+  bombs: Array.from({ length: 16 }, () => [] as number[]),
+  audience: ['🐥', '🐤', '🐣'],
+  music: {
+    // F -> F -> Bb -> C
+    bassRoots: [53, 53, 58, 60],
+    // Fメジャーペンタトニック
+    scale: [65, 67, 69, 72, 74, 77],
+  },
+  theme: {
+    bgTop: '#8ef0c9',
+    bgBottom: '#1ca7a0',
+    ink: '#0b3d3a',
+    accent: '#ff5d8f',
+    lane: '#d8fff0',
+  },
+};
+
 export const STAGES: readonly StageDef[] = [
   forestConcert,
   moonMochi,
   festivalDrums,
   phantomOrchestra,
+  echoParrot,
 ];
 
 export const STAGE_IDS: readonly string[] = STAGES.map((s) => s.id);

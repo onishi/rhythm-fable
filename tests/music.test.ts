@@ -96,4 +96,14 @@ describe('buildMusicEvents', () => {
     expect(noCountIn.some((e) => e.kind === 'count')).toBe(false);
     expect(noCountIn.some((e) => e.kind === 'kick' && e.time === 0)).toBe(true);
   });
+
+  it('callEcho モードではメロディが1小節前に鳴る(お手本)', () => {
+    const echoChart = createChart(120, [8, 10, 12.5]);
+    const onNote = buildMusicEvents(echoChart, MUSIC);
+    const callEcho = buildMusicEvents(echoChart, MUSIC, COUNT_IN_BEATS, 'callEcho');
+    const measureSec = (4 * 60) / 120;
+    const onNoteTimes = onNote.filter((e) => e.kind === 'melody').map((e) => e.time);
+    const callTimes = callEcho.filter((e) => e.kind === 'melody').map((e) => e.time);
+    expect(callTimes).toEqual(onNoteTimes.map((t) => t - measureSec));
+  });
 });

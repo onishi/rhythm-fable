@@ -98,6 +98,13 @@ describe('buildEndlessRoundSpec', () => {
       expect(stage.patterns.length).toBeGreaterThanOrEqual(ENDLESS_MEASURES_PER_ROUND);
     }
   });
+
+  it('コール&レスポンス型のステージは素材に選ばれない', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const spec = buildEndlessRoundSpec(0, mulberry32(seed));
+      expect(spec.stage.gameSystem ?? 'flow').toBe('flow');
+    }
+  });
 });
 
 describe('createEndlessRoundChart', () => {
