@@ -211,6 +211,51 @@ kbd {
   opacity: 0.7;
 }
 
+/* ---------- あそぶにんずう ---------- */
+
+.player-count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.player-count-label {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.player-count-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.player-count-chip {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 6px 18px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.08s, border-color 0.08s;
+}
+
+.player-count-chip-on {
+  border-color: var(--accent);
+  background: #fff;
+  transform: scale(1.08);
+}
+
+.player-key-hint {
+  font-weight: 800;
+  margin-right: 6px;
+}
+
 @media (max-width: 760px) {
   .screen {
     gap: 14px;
@@ -800,6 +845,177 @@ kbd {
 .echo-stage .judgment-label {
   top: 55%;
   left: 66%;
+}
+
+/* ---------- 対戦(みんなでライブ) ---------- */
+
+.versus-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.versus-lane {
+  position: relative;
+  height: 110px;
+  max-width: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid color-mix(in srgb, var(--player-accent) 60%, transparent);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.versus-stages[data-players='3'] .versus-lane {
+  height: 94px;
+}
+
+.versus-stages[data-players='4'] .versus-lane {
+  height: 76px;
+}
+
+.versus-lane .hit-zone {
+  width: 50px;
+  height: 50px;
+  border-width: 4px;
+  border-color: var(--player-accent);
+}
+
+.versus-lane .character {
+  font-size: 36px;
+}
+
+.versus-lane .note {
+  font-size: 28px;
+}
+
+.versus-lane .note-star {
+  font-size: 32px;
+}
+
+.versus-lane .note-bomb {
+  font-size: 30px;
+}
+
+.versus-lane .judgment-label {
+  top: 0;
+  font-size: 17px;
+}
+
+.versus-lane .judgment-bomb {
+  font-size: 20px;
+}
+
+.versus-lane .judgment-hint {
+  display: inline;
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.versus-tag {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--player-accent);
+  padding: 2px 12px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.versus-tag kbd {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0 8px;
+}
+
+.versus-points {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  font-size: 16px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.versus-combo {
+  font-style: normal;
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--player-accent);
+}
+
+.fever .versus-lane .hit-zone {
+  box-shadow: 0 0 18px 4px color-mix(in srgb, var(--player-accent) 60%, transparent);
+}
+
+.versus-standings {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 480px);
+}
+
+.versus-standing-row {
+  display: grid;
+  grid-template-columns: 40px 44px 48px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  border-left: 8px solid var(--player-accent);
+  border-radius: 14px;
+  padding: 10px 16px;
+  color: #333;
+  text-align: left;
+}
+
+.versus-standing-row[data-winner='true'] {
+  background: linear-gradient(90deg, #fff6d8, #ffe9a8);
+  animation: rank-stamp 0.5s cubic-bezier(0.2, 2, 0.4, 1);
+}
+
+.versus-standing-place {
+  font-size: 26px;
+}
+
+.versus-standing-chara {
+  font-size: 30px;
+}
+
+.versus-standing-label {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--player-accent);
+}
+
+.versus-standing-score {
+  font-size: 24px;
+  font-weight: 800;
+  justify-self: end;
+}
+
+.versus-standing-combo {
+  font-size: 12px;
+  opacity: 0.7;
+  justify-self: end;
+}
+
+@media (max-width: 760px) {
+  .versus-lane .character {
+    font-size: 30px;
+  }
+
+  .versus-standing-row {
+    grid-template-columns: 32px 36px 40px 1fr auto;
+    padding: 8px 12px;
+  }
 }
 
 /* ---------- 観客 ---------- */

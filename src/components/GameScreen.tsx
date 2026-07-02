@@ -1,15 +1,26 @@
-import type { CSSProperties } from 'react';
-import type { GameSnapshot, JudgmentEvent } from '../hooks/useGameEngine';
+import type { CSSProperties, PointerEvent, ReactNode } from 'react';
+import type {
+  GameSnapshot,
+  JudgmentEvent,
+  NoteView,
+  PlayerSnapshot,
+} from '../hooks/useGameEngine';
 import type { StageDef } from '../game/stages';
 import { BEATS_PER_MEASURE, COUNT_IN_BEATS } from '../game/chart';
 import { ENDLESS_LIVES } from '../game/endless';
 import { calcAccuracy, calcRank, isFever } from '../game/score';
+import {
+  PLAYER_CHARACTERS,
+  PLAYER_COLORS,
+  PLAYER_KEY_LABELS,
+  PLAYER_LABELS,
+} from '../game/versus';
 import { JUDGMENT_LABEL } from '../game/types';
 
 interface Props {
   snapshot: GameSnapshot;
   stage: StageDef;
-  onHit: () => void;
+  onHit: (player?: number) => void;
 }
 
 /** ヒットゾーンの横位置(%) */
@@ -21,6 +32,11 @@ const SPAWN_X = 94;
 const VANISH_START = 0.45;
 /** 完全に見えなくなる progress */
 const VANISH_END = 0.25;
+
+/** とつぜんステージでノーツが見え始める progress */
+const SUDDEN_SHOW = 0.5;
+/** 完全に見える progress */
+const SUDDEN_FULL = 0.38;
 
 /** 観客の最大数 */
 const MAX_AUDIENCE = 6;
@@ -38,10 +54,94 @@ export function themeStyle(stage: StageDef): CSSProperties {
 }
 
 function noteOpacity(stage: StageDef, progress: number, kind: string, missed: boolean) {
-  // 暗記ステージでは通常/スターノーツがヒットゾーン手前で消える
-  // (おじゃまノーツとミスして流れたノーツは見えたまま)
-  if (!stage.hideNotes || kind === 'bomb' || missed || progress < 0) return undefined;
-  return Math.max(0, Math.min(1, (progress - VANISH_END) / (VANISH_START - VANISH_END)));
+  // おじゃまノーツとミスして流れたノーツはギミック対象外で常に見える
+  if (kind === 'bomb' || missed || progress < 0) return undefined;
+  // 暗記ステージ: ヒットゾーン手前で消える
+  if (stage.hideNotes) {
+    return Math.max(0, Math.min(1, (progress - VANISH_END) / (VANISH_START - VANISH_END)));
+  }
+  // とつぜんステージ: ヒットゾーン直前まで見えない
+  if (stage.suddenNotes) {
+    return Math.max(0, Math.min(1, (SUDDEN_SHOW - progress) / (SUDDEN_SHOW - SUDDEN_FULL)));
+  }
+  return undefined;
+}
+
+/** ノーツが流れる形式のレーン1本分(1Pでも対戦の各プレイヤーでも使う) */
+function FlowLane({
+  stage,
+  notes,
+  lastJudgment,
+  beatPulse,
+  character,
+  className = '',
+  style,
+  onTap,
+  children,
+}: {
+  stage: StageDef;
+  notes: NoteView[];
+  lastJudgment: JudgmentEvent | null;
+  beatPulse: number;
+  character: string;
+  className?: string;
+  style?: CSSProperties;
+  onTap?: (e: PointerEvent<HTMLDivElement>) => void;
+  children?: ReactNode;
+}) {
+  // 逆走ステージではヒットゾーンが右、ノーツは左から流れる
+  const hitX = stage.reverse ? 100 - HIT_X : HIT_X;
+  const span = (stage.reverse ? -1 : 1) * (SPAWN_X - HIT_X);
+  return (
+    <div className={`stage ${className}`} style={style} onPointerDown={onTap}>
+      <div className="lane" />
+      <div
+        className="hit-zone"
+        style={{ left: `${hitX}%`, transform: `translate(-50%, -50%) scale(${beatPulse})` }}
+      />
+      <div
+        className="character"
+        style={{ left: `${hitX}%` }}
+        key={lastJudgment ? `chara-${lastJudgment.seq}` : 'chara'}
+        data-judgment={lastJudgment?.type ?? 'none'}
+      >
+        {character}
+      </div>
+      {notes.map((note) => (
+        <div
+          key={note.id}
+          className={`note${note.missed ? ' note-missed' : ''}${
+            note.kind === 'star' ? ' note-star' : ''
+          }${note.kind === 'bomb' ? ' note-bomb' : ''}`}
+          style={{
+            left: `${hitX + note.progress * span}%`,
+            opacity: noteOpacity(stage, note.progress, note.kind, note.missed),
+          }}
+        >
+          {note.kind === 'star'
+            ? stage.starEmoji
+            : note.kind === 'bomb'
+              ? '💣'
+              : stage.noteEmoji}
+        </div>
+      ))}
+      {lastJudgment && (
+        <div
+          key={`judge-${lastJudgment.seq}`}
+          className={`judgment-label judgment-${lastJudgment.type}${
+            lastJudgment.bomb ? ' judgment-bomb' : ''
+          }`}
+          style={{ left: `${hitX}%` }}
+        >
+          {lastJudgment.bomb ? '💥 ドカーン!' : JUDGMENT_LABEL[lastJudgment.type]}
+          {lastJudgment.hint && (
+            <span className="judgment-hint">{HINT_LABEL[lastJudgment.hint]}</span>
+          )}
+        </div>
+      )}
+      {children}
+    </div>
+  );
 }
 
 /** コール&レスポンス(echo)ステージの中央パネル */
@@ -129,17 +229,35 @@ function EchoStage({
   );
 }
 
+function footerText(stage: StageDef, isVersus: boolean, playerCount: number): string {
+  if (isVersus) {
+    const keys = PLAYER_LABELS.slice(0, playerCount)
+      .map((label, i) => `${label}:${PLAYER_KEY_LABELS[i]}`)
+      .join(' ');
+    return `じぶんの レーンを タップ! キーは ${keys}`;
+  }
+  if (stage.gameSystem === 'echo') {
+    return 'おてほんの つぎの小節で おなじリズムを たたこう!';
+  }
+  if (stage.hideNotes) return 'きえても リズムは つづいてる! 💣 は たたかない!';
+  if (stage.suddenNotes) return 'ノーツは とつぜん あらわれる! おとを よく きこう!';
+  if (stage.reverse) return 'こんどは ひだりから ながれてくる! 💣 は たたかない!';
+  return 'スペース か タップで たたく! 💣 は たたかない!';
+}
+
 export function GameScreen({ snapshot, stage, onHit }: Props) {
-  const { notes, score, lastJudgment, countIn, beat, bpm, mode, lives, round, speedUp } =
+  const { score, lastJudgment, countIn, beat, bpm, mode, lives, round, speedUp, players } =
     snapshot;
+  const isVersus = mode === 'versus';
   const beatPulse = 1 + 0.04 * Math.max(0, 1 - (beat % 1) * 3);
-  const fever = isFever(score.combo);
+  const fever = players.some((p) => isFever(p.score.combo));
 
   const totalJudged = score.counts.perfect + score.counts.good + score.counts.miss;
   const accuracy = totalJudged === 0 ? 1 : calcAccuracy(score.counts);
   const grooveLevel = calcRank(accuracy);
 
-  const audienceCount = Math.min(MAX_AUDIENCE, 2 + Math.floor(score.combo / 4));
+  const bestCombo = Math.max(0, ...players.map((p) => p.score.combo));
+  const audienceCount = Math.min(MAX_AUDIENCE, 2 + Math.floor(bestCombo / 4));
   const beatSec = 60 / bpm;
 
   return (
@@ -147,31 +265,39 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
       className={`screen game-screen${fever ? ' fever' : ''}`}
       style={themeStyle(stage)}
       onPointerDown={(e) => {
+        // 対戦ではレーンごとのタップで叩く(画面全体タップは1P用)
+        if (isVersus) return;
         e.preventDefault();
-        onHit();
+        onHit(0);
       }}
     >
       <header className="hud">
-        <div className="hud-score">スコア {score.score}</div>
+        <div className="hud-score">
+          {isVersus ? `👥 ${players.length}にん たいせん` : `スコア ${score.score}`}
+        </div>
         <div className="hud-stage">
           {mode === 'endless' ? `🎪 ラウンド ${round + 1} ♪=${bpm}` : stage.title}
         </div>
         <div className="hud-combo">
-          {score.combo >= 2 ? `${fever ? '🔥' : ''}${score.combo} コンボ!` : ''}
+          {!isVersus && score.combo >= 2
+            ? `${isFever(score.combo) ? '🔥' : ''}${score.combo} コンボ!`
+            : ''}
         </div>
       </header>
 
       <div className="hud-sub">
-        <div className="groove-gauge" title="ノリゲージ">
-          <span className="groove-label">ノリ</span>
-          <div className="groove-track">
-            <div
-              className="groove-fill"
-              data-level={grooveLevel}
-              style={{ width: `${accuracy * 100}%` }}
-            />
+        {!isVersus && (
+          <div className="groove-gauge" title="ノリゲージ">
+            <span className="groove-label">ノリ</span>
+            <div className="groove-track">
+              <div
+                className="groove-fill"
+                data-level={grooveLevel}
+                style={{ width: `${accuracy * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
         {mode === 'endless' && lives !== null && (
           <div className="lives">
             {'❤️'.repeat(lives)}
@@ -188,56 +314,48 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
         </div>
       )}
 
-      {stage.gameSystem === 'echo' ? (
-        <EchoStage stage={stage} beat={beat} lastJudgment={lastJudgment} />
-      ) : (
-        <div className="stage">
-          <div className="lane" />
-          <div
-            className="hit-zone"
-            style={{ left: `${HIT_X}%`, transform: `translate(-50%, -50%) scale(${beatPulse})` }}
-          />
-          <div
-            className="character"
-            style={{ left: `${HIT_X}%` }}
-            key={lastJudgment ? `chara-${lastJudgment.seq}` : 'chara'}
-            data-judgment={lastJudgment?.type ?? 'none'}
-          >
-            {stage.character}
-          </div>
-          {notes.map((note) => (
-            <div
-              key={note.id}
-              className={`note${note.missed ? ' note-missed' : ''}${
-                note.kind === 'star' ? ' note-star' : ''
-              }${note.kind === 'bomb' ? ' note-bomb' : ''}`}
-              style={{
-                left: `${HIT_X + note.progress * (SPAWN_X - HIT_X)}%`,
-                opacity: noteOpacity(stage, note.progress, note.kind, note.missed),
+      {isVersus ? (
+        <div className="versus-stages" data-players={players.length}>
+          {players.map((player: PlayerSnapshot, i: number) => (
+            <FlowLane
+              key={i}
+              className="versus-lane"
+              style={{ '--player-accent': PLAYER_COLORS[i] } as CSSProperties}
+              stage={stage}
+              notes={player.notes}
+              lastJudgment={player.lastJudgment}
+              beatPulse={beatPulse}
+              character={PLAYER_CHARACTERS[i]}
+              onTap={(e) => {
+                e.preventDefault();
+                onHit(i);
               }}
             >
-              {note.kind === 'star'
-                ? stage.starEmoji
-                : note.kind === 'bomb'
-                  ? '💣'
-                  : stage.noteEmoji}
-            </div>
+              <span className="versus-tag">
+                {PLAYER_LABELS[i]} <kbd>{PLAYER_KEY_LABELS[i]}</kbd>
+              </span>
+              <span className="versus-points">
+                {player.score.score}
+                {player.score.combo >= 2 && (
+                  <em className="versus-combo">
+                    {isFever(player.score.combo) ? '🔥' : ''}
+                    {player.score.combo}コンボ
+                  </em>
+                )}
+              </span>
+            </FlowLane>
           ))}
-          {lastJudgment && (
-            <div
-              key={`judge-${lastJudgment.seq}`}
-              className={`judgment-label judgment-${lastJudgment.type}${
-                lastJudgment.bomb ? ' judgment-bomb' : ''
-              }`}
-              style={{ left: `${HIT_X}%` }}
-            >
-              {lastJudgment.bomb ? '💥 ドカーン!' : JUDGMENT_LABEL[lastJudgment.type]}
-              {lastJudgment.hint && (
-                <span className="judgment-hint">{HINT_LABEL[lastJudgment.hint]}</span>
-              )}
-            </div>
-          )}
         </div>
+      ) : stage.gameSystem === 'echo' ? (
+        <EchoStage stage={stage} beat={beat} lastJudgment={lastJudgment} />
+      ) : (
+        <FlowLane
+          stage={stage}
+          notes={snapshot.notes}
+          lastJudgment={lastJudgment}
+          beatPulse={beatPulse}
+          character={stage.character}
+        />
       )}
 
       <div className={`audience${fever ? ' audience-fever' : ''}`}>
@@ -255,13 +373,7 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
         ))}
       </div>
 
-      <footer className="game-footer">
-        {stage.gameSystem === 'echo'
-          ? 'おてほんの つぎの小節で おなじリズムを たたこう!'
-          : stage.hideNotes
-            ? 'きえても リズムは つづいてる! 💣 は たたかない!'
-            : 'スペース か タップで たたく! 💣 は たたかない!'}
-      </footer>
+      <footer className="game-footer">{footerText(stage, isVersus, players.length)}</footer>
     </div>
   );
 }

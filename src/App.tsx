@@ -4,8 +4,10 @@ import { StageSelect } from './components/StageSelect';
 import { GameScreen } from './components/GameScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { EndlessResultScreen } from './components/EndlessResultScreen';
+import { VersusResultScreen } from './components/VersusResultScreen';
 import { STAGES, STAGE_IDS } from './game/stages';
 import { isPerfectPlay } from './game/score';
+import { PLAYER_KEY_CODES, canPlayVersus } from './game/versus';
 import {
   isEndlessUnlocked,
   isNewRecord,
@@ -29,7 +31,7 @@ interface ResultMeta {
 const ENDLESS_INDEX = STAGES.length;
 
 export function App() {
-  const { snapshot, start, startEndless, hit, backToTitle } = useGameEngine();
+  const { snapshot, start, startEndless, startVersus, hit, backToTitle } = useGameEngine();
   const { phase } = snapshot;
 
   const [records, setRecords] = useState<Records>(() => loadRecords(window.localStorage));
@@ -37,6 +39,7 @@ export function App() {
     loadEndlessRecord(window.localStorage),
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [playerCount, setPlayerCount] = useState(1);
   const [resultMeta, setResultMeta] = useState<ResultMeta>({
     newRecord: false,
     unlockedNext: false,
@@ -50,22 +53,35 @@ export function App() {
     (index: number) => {
       resultProcessedRef.current = false;
       if (index === ENDLESS_INDEX) {
-        if (!endlessUnlocked) return;
+        if (!endlessUnlocked || playerCount > 1) return;
         setSelectedIndex(index);
         startEndless();
         return;
       }
       if (!isStageUnlocked(records, STAGE_IDS, index)) return;
+      const stage = STAGES[index];
+      if (playerCount > 1) {
+        if (!canPlayVersus(stage)) return;
+        setSelectedIndex(index);
+        startVersus(stage, playerCount);
+        return;
+      }
       setSelectedIndex(index);
-      start(STAGES[index]);
+      start(stage);
     },
-    [records, endlessUnlocked, start, startEndless],
+    [records, endlessUnlocked, playerCount, start, startEndless, startVersus],
   );
 
   // リザルト確定時に記録を更新して保存する
   useEffect(() => {
     if (phase !== 'result' || resultProcessedRef.current) return;
     resultProcessedRef.current = true;
+
+    // 対戦はパーティーモードなので記録を残さない
+    if (snapshot.mode === 'versus') {
+      setResultMeta({ newRecord: false, unlockedNext: false });
+      return;
+    }
 
     if (snapshot.mode === 'endless') {
       const newRecord = snapshot.score.score > (endlessRecord?.bestScore ?? 0);
@@ -103,9 +119,17 @@ export function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (phase === 'playing') {
+        if (snapshot.mode === 'versus') {
+          const player = (PLAYER_KEY_CODES as readonly string[]).indexOf(e.code);
+          if (player !== -1 && player < playerCount && !e.repeat) {
+            e.preventDefault();
+            hit(player);
+          }
+          return;
+        }
         if (e.code === 'Space' && !e.repeat) {
           e.preventDefault();
-          hit();
+          hit(0);
         }
         return;
       }
@@ -130,10 +154,19 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [phase, hit, startAt, selectedIndex]);
+  }, [phase, snapshot.mode, playerCount, hit, startAt, selectedIndex]);
 
   if (phase === 'playing' && snapshot.stage !== null) {
     return <GameScreen snapshot={snapshot} stage={snapshot.stage} onHit={hit} />;
+  }
+  if (phase === 'result' && snapshot.mode === 'versus') {
+    return (
+      <VersusResultScreen
+        players={snapshot.players}
+        onRetry={() => startAt(selectedIndex)}
+        onBackToSelect={backToTitle}
+      />
+    );
   }
   if (phase === 'result' && snapshot.mode === 'endless') {
     return (
@@ -168,8 +201,10 @@ export function App() {
       endlessUnlocked={endlessUnlocked}
       endlessRecord={endlessRecord}
       selectedIndex={selectedIndex}
+      playerCount={playerCount}
       onSelect={setSelectedIndex}
       onStart={startAt}
+      onPlayerCount={setPlayerCount}
     />
   );
 }
