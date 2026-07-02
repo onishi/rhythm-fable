@@ -23,9 +23,15 @@ export interface StageDef {
   patterns: readonly (readonly number[])[];
   /** 小節ごとのスターノーツ拍位置(patterns の部分集合であること) */
   stars: readonly (readonly number[])[];
+  /** 小節ごとのおじゃまノーツ💣拍位置(patterns とは重ならないこと) */
+  bombs: readonly (readonly number[])[];
+  /** true ならノーツがヒットゾーン手前で見えなくなる(暗記ステージ) */
+  hideNotes?: boolean;
   music: StageMusic;
   theme: StageTheme;
 }
+
+const NO_BOMBS_12 = Array.from({ length: 12 }, () => [] as number[]);
 
 /** ステージ1: ゆったり4分打ち中心の入門ステージ */
 const forestConcert: StageDef = {
@@ -51,6 +57,7 @@ const forestConcert: StageDef = {
     [0],
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [], [], [0]],
+  bombs: NO_BOMBS_12,
   music: {
     // C -> C -> F -> G
     bassRoots: [48, 48, 53, 55],
@@ -66,7 +73,7 @@ const forestConcert: StageDef = {
   },
 };
 
-/** ステージ2: 8分裏が混ざる中級ステージ */
+/** ステージ2: 8分裏とおじゃまノーツが混ざる中級ステージ */
 const moonMochi: StageDef = {
   id: 'moon',
   title: 'つきよのもちつき',
@@ -92,6 +99,7 @@ const moonMochi: StageDef = {
     [0],
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [3.5], [], [], [], [0]],
+  bombs: [[], [], [], [], [], [], [], [2], [], [], [], [], [0], []],
   music: {
     // Am -> Am -> Dm -> E
     bassRoots: [45, 45, 50, 52],
@@ -135,6 +143,7 @@ const festivalDrums: StageDef = {
     [0],
   ],
   stars: [[], [], [], [], [], [], [], [0], [], [], [], [3.5], [], [], [], [0]],
+  bombs: [[], [], [], [], [], [], [], [2], [], [2.5], [], [], [], [], [], []],
   music: {
     // Dm -> Dm -> Gm -> A
     bassRoots: [38, 38, 43, 45],
@@ -150,7 +159,55 @@ const festivalDrums: StageDef = {
   },
 };
 
-export const STAGES: readonly StageDef[] = [forestConcert, moonMochi, festivalDrums];
+/** ステージ4: ノーツが途中で消える暗記ステージ */
+const phantomOrchestra: StageDef = {
+  id: 'phantom',
+  title: 'まぼろしのオーケストラ',
+  subtitle: 'ノーツが きえる!? リズムを おぼえて たたけ',
+  character: '🦉',
+  noteEmoji: '🎶',
+  starEmoji: '🌠',
+  bpm: 116,
+  hideNotes: true,
+  patterns: [
+    [0, 2],
+    [0, 2],
+    [0, 1, 2],
+    [0, 1, 2],
+    [0, 1.5, 2],
+    [0, 1.5, 2],
+    [0],
+    [0, 1, 2, 3],
+    [0, 1, 2, 3],
+    [0, 1.5, 2, 3],
+    [0, 1.5, 2, 3],
+    [2, 3],
+    [0, 0.5, 1, 2],
+    [0],
+  ],
+  stars: [[], [], [], [], [], [], [0], [], [], [], [3], [], [], [0]],
+  bombs: [[], [3], [], [], [], [], [3], [], [], [], [], [0], [], []],
+  music: {
+    // Em -> Em -> C -> D
+    bassRoots: [40, 40, 48, 50],
+    // Eマイナーペンタトニック
+    scale: [52, 55, 57, 59, 62, 64],
+  },
+  theme: {
+    bgTop: '#4a2c6b',
+    bgBottom: '#1e1433',
+    ink: '#f3ecff',
+    accent: '#e879f9',
+    lane: '#6b5a99',
+  },
+};
+
+export const STAGES: readonly StageDef[] = [
+  forestConcert,
+  moonMochi,
+  festivalDrums,
+  phantomOrchestra,
+];
 
 export const STAGE_IDS: readonly string[] = STAGES.map((s) => s.id);
 
@@ -160,5 +217,6 @@ export function createStageChart(stage: StageDef): Chart {
     stage.bpm,
     buildBeats(stage.patterns, COUNT_IN_BEATS),
     buildBeats(stage.stars, COUNT_IN_BEATS),
+    buildBeats(stage.bombs, COUNT_IN_BEATS),
   );
 }

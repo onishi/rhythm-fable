@@ -45,6 +45,16 @@ describe('buildMusicEvents', () => {
     expect(events.filter((e) => e.kind === 'melody')).toHaveLength(chart.notes.length);
   });
 
+  it('おじゃまノーツにはメロディが付かない', () => {
+    const withBombs = createChart(120, [4, 6], [], [5]);
+    const bombEvents = buildMusicEvents(withBombs, MUSIC);
+    expect(bombEvents.filter((e) => e.kind === 'melody')).toHaveLength(2);
+    const bombTime = withBombs.notes.find((n) => n.kind === 'bomb')?.time;
+    expect(
+      bombEvents.some((e) => e.kind === 'melody' && e.time === bombTime),
+    ).toBe(false);
+  });
+
   it('メロディの音高はスケール内から選ばれる', () => {
     for (const e of events.filter((e) => e.kind === 'melody')) {
       expect(MUSIC.scale).toContain(e.midi);

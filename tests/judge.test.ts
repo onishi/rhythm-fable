@@ -5,6 +5,7 @@ import {
   findTargetNoteIndex,
   judgeOffset,
 } from '../src/game/judge';
+import type { NoteResult } from '../src/game/judge';
 import type { Judgment } from '../src/game/types';
 
 describe('judgeOffset', () => {
@@ -61,5 +62,10 @@ describe('findTargetNoteIndex', () => {
   it('全ノーツ判定済みなら -1', () => {
     const judged: (Judgment | null)[] = ['perfect', 'good', 'miss'];
     expect(findTargetNoteIndex(times, judged, 2.0)).toBe(-1);
+  });
+
+  it('回避済み(avoided)のおじゃまノーツもスキップする', () => {
+    const judged: (NoteResult | null)[] = [null, 'avoided', null];
+    expect(findTargetNoteIndex(times, judged, 2.05)).toBe(-1);
   });
 });

@@ -33,7 +33,21 @@ describe('betterRank', () => {
 describe('updateRecord', () => {
   it('初回プレイで記録が作られる', () => {
     const records = updateRecord({}, 'forest', 500, 'ok');
-    expect(records.forest).toEqual({ bestScore: 500, bestRank: 'ok', playCount: 1 });
+    expect(records.forest).toEqual({
+      bestScore: 500,
+      bestRank: 'ok',
+      playCount: 1,
+      perfectCount: 0,
+    });
+  });
+
+  it('パーフェクト達成で perfectCount が増える', () => {
+    let records = updateRecord({}, 'forest', 500, 'high', true);
+    expect(records.forest.perfectCount).toBe(1);
+    records = updateRecord(records, 'forest', 600, 'high', false);
+    expect(records.forest.perfectCount).toBe(1);
+    records = updateRecord(records, 'forest', 700, 'high', true);
+    expect(records.forest.perfectCount).toBe(2);
   });
 
   it('ベストスコア・ベスト評価は良い方を保持する', () => {
@@ -122,10 +136,24 @@ describe('loadRecords / saveRecords', () => {
       }),
     });
     const records = loadRecords(storage);
-    expect(records.forest).toEqual({ bestScore: 100, bestRank: 'high', playCount: 2 });
+    expect(records.forest).toEqual({
+      bestScore: 100,
+      bestRank: 'high',
+      playCount: 2,
+      perfectCount: 0,
+    });
     expect(records.broken1).toBeUndefined();
     expect(records.broken2).toBeUndefined();
     expect(records.broken3).toBeUndefined();
+  });
+
+  it('perfectCount がない旧データも読み込める(0扱い)', () => {
+    const storage = fakeStorage({
+      'rhythm-fable-records-v1': JSON.stringify({
+        forest: { bestScore: 100, bestRank: 'ok', playCount: 1 },
+      }),
+    });
+    expect(loadRecords(storage).forest.perfectCount).toBe(0);
   });
 
   it('配列が保存されていても空として扱う', () => {

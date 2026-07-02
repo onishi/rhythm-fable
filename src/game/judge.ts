@@ -7,6 +7,9 @@ export const GOOD_WINDOW = 0.11;
 /** これを超えた入力はノーツを消費しない(秒) */
 export const MISS_WINDOW = 0.2;
 
+/** ノーツの最終状態。avoided はおじゃまノーツを叩かずにやり過ごした状態 */
+export type NoteResult = Judgment | 'avoided';
+
 /**
  * 入力とノーツの時間差から判定を返す。
  * MISS_WINDOW より外の入力は対象ノーツなしとして null を返す。
@@ -25,7 +28,7 @@ export function judgeOffset(offsetSec: number): Judgment | null {
  */
 export function findTargetNoteIndex(
   noteTimes: readonly number[],
-  judged: readonly (Judgment | null)[],
+  judged: readonly (NoteResult | null)[],
   inputTime: number,
 ): number {
   let best = -1;

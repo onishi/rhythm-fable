@@ -58,6 +58,18 @@ describe('createChart', () => {
     expect(chart.notes.every((n) => n.kind === 'normal')).toBe(true);
   });
 
+  it('bombBeats はおじゃまノーツとして追加され、時間順に混ざる', () => {
+    const chart = createChart(120, [0, 2], [], [1]);
+    expect(chart.notes.map((n) => n.beat)).toEqual([0, 1, 2]);
+    expect(chart.notes.map((n) => n.kind)).toEqual(['normal', 'bomb', 'normal']);
+    expect(chart.notes.map((n) => n.id)).toEqual([0, 1, 2]);
+  });
+
+  it('最後がおじゃまノーツでも終了余白が計算される', () => {
+    const chart = createChart(120, [0], [], [6]);
+    expect(chart.totalBeats).toBe(6 + BEATS_PER_MEASURE);
+  });
+
   it('最後のノーツのあとに終了余白がある', () => {
     const chart = createChart(120, [0, 7]);
     expect(chart.lengthSec).toBeGreaterThan(beatToTime(7, 120));

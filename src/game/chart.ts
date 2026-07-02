@@ -48,22 +48,27 @@ export function buildBeats(
 
 /**
  * 拍数の列から譜面を生成する。
- * starBeats に含まれる拍のノーツはスターノーツ(得点2倍)になる。
+ * - starBeats に含まれる拍のノーツはスターノーツ(得点2倍)
+ * - bombBeats は beats とは別に追加される「叩いてはいけない」おじゃまノーツ
  */
 export function createChart(
   bpm: number,
   beats: readonly number[],
   starBeats: readonly number[] = [],
+  bombBeats: readonly number[] = [],
 ): Chart {
   const starSet = new Set(starBeats);
-  const sorted = [...beats].sort((a, b) => a - b);
-  const notes: Note[] = sorted.map((beat, id) => ({
+  const entries = [
+    ...beats.map((beat) => ({ beat, bomb: false })),
+    ...bombBeats.map((beat) => ({ beat, bomb: true })),
+  ].sort((a, b) => a.beat - b.beat);
+  const notes: Note[] = entries.map((entry, id) => ({
     id,
-    beat,
-    time: beatToTime(beat, bpm),
-    kind: starSet.has(beat) ? 'star' : 'normal',
+    beat: entry.beat,
+    time: beatToTime(entry.beat, bpm),
+    kind: entry.bomb ? 'bomb' : starSet.has(entry.beat) ? 'star' : 'normal',
   }));
-  const lastBeat = sorted.length > 0 ? sorted[sorted.length - 1] : 0;
+  const lastBeat = entries.length > 0 ? entries[entries.length - 1].beat : 0;
   const endBeat = Math.ceil(lastBeat) + BEATS_PER_MEASURE;
   return {
     bpm,

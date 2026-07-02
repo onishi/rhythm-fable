@@ -17,8 +17,19 @@ export const BASE_SCORE: Record<Judgment, number> = {
 /** スターノーツの得点倍率 */
 export const STAR_MULTIPLIER = 2;
 
+/** フィーバー突入に必要なコンボ数 */
+export const FEVER_COMBO = 10;
+
+/** フィーバー中の得点倍率 */
+export const FEVER_MULTIPLIER = 2;
+
 /** コンボによる加点(上限あり) */
 export const COMBO_BONUS_CAP = 50;
+
+/** フィーバー中か(このコンボ数の状態で次を叩くと倍率がかかる) */
+export function isFever(combo: number): boolean {
+  return combo >= FEVER_COMBO;
+}
 
 export function createScoreState(): ScoreState {
   return {
@@ -41,7 +52,10 @@ export function applyJudgment(
   kind: NoteKind = 'normal',
 ): ScoreState {
   const combo = judgment === 'miss' ? 0 : state.combo + 1;
-  const base = BASE_SCORE[judgment] * (kind === 'star' ? STAR_MULTIPLIER : 1);
+  const base =
+    BASE_SCORE[judgment] *
+    (kind === 'star' ? STAR_MULTIPLIER : 1) *
+    (isFever(state.combo) ? FEVER_MULTIPLIER : 1);
   return {
     score: state.score + base + (judgment === 'miss' ? 0 : comboBonus(combo)),
     combo,

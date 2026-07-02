@@ -34,6 +34,7 @@ export function midiToFreq(midi: number): number {
  * - ドラム: 表拍にキック/スネア交互、8分裏にハイハット
  * - ベース: 小節内の1・3拍目にコードルート
  * - メロディ: 各ノーツの拍に音階から決定的に選んだ音
+ *   (おじゃまノーツにはメロディを付けない = 音でも区別できる)
  */
 export function buildMusicEvents(chart: Chart, music: StageMusic): MusicEvent[] {
   const { bpm, totalBeats, notes } = chart;
@@ -60,10 +61,12 @@ export function buildMusicEvents(chart: Chart, music: StageMusic): MusicEvent[] 
     }
   }
 
-  notes.forEach((note, index) => {
-    const degree = (index * 2 + Math.floor(note.beat)) % music.scale.length;
-    events.push({ time: note.time, kind: 'melody', midi: music.scale[degree] });
-  });
+  notes
+    .filter((note) => note.kind !== 'bomb')
+    .forEach((note, index) => {
+      const degree = (index * 2 + Math.floor(note.beat)) % music.scale.length;
+      events.push({ time: note.time, kind: 'melody', midi: music.scale[degree] });
+    });
 
   return events.sort((a, b) => a.time - b.time);
 }

@@ -133,6 +133,31 @@ export class GameAudio {
     this.tone(this.currentTime, 300, 0.05, 'sine', 0.07);
   }
 
+  /** おじゃまノーツを叩いてしまったときの爆発音 */
+  playExplosion(): void {
+    const now = this.currentTime;
+    this.noise(now, 0.3, 0.35, 400);
+    const ctx = this.ensure();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+
+  /** フィーバー突入のファンファーレ */
+  playFeverStart(): void {
+    const now = this.currentTime;
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      this.tone(now + i * 0.07, freq, 0.25, 'triangle', 0.22);
+    });
+  }
+
   /** リザルトのジングル */
   playResultJingle(rank: Rank): void {
     const now = this.currentTime + 0.1;

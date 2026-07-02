@@ -1,6 +1,8 @@
 import {
   BASE_SCORE,
   COMBO_BONUS_CAP,
+  FEVER_COMBO,
+  FEVER_MULTIPLIER,
   RANK_LABEL,
   STAR_MULTIPLIER,
   applyJudgment,
@@ -8,7 +10,9 @@ import {
   calcRank,
   comboBonus,
   createScoreState,
+  isFever,
   isPerfectPlay,
+  type ScoreState,
 } from '../src/game/score';
 
 describe('createScoreState', () => {
@@ -91,6 +95,49 @@ describe('applyJudgment', () => {
   it('スターノーツのミスでも得点は増えない', () => {
     const state = applyJudgment(createScoreState(), 'miss', 'star');
     expect(state.score).toBe(0);
+  });
+});
+
+describe('フィーバー', () => {
+  function buildCombo(count: number): ScoreState {
+    let state = createScoreState();
+    for (let i = 0; i < count; i++) {
+      state = applyJudgment(state, 'perfect');
+    }
+    return state;
+  }
+
+  it('FEVER_COMBO 以上でフィーバー', () => {
+    expect(isFever(FEVER_COMBO)).toBe(true);
+    expect(isFever(FEVER_COMBO - 1)).toBe(false);
+  });
+
+  it('フィーバー中は基礎点が2倍になる', () => {
+    const state = buildCombo(FEVER_COMBO);
+    const after = applyJudgment(state, 'perfect');
+    expect(after.score - state.score).toBe(
+      BASE_SCORE.perfect * FEVER_MULTIPLIER + comboBonus(FEVER_COMBO + 1),
+    );
+  });
+
+  it('フィーバー突入前のヒットは等倍', () => {
+    const state = buildCombo(FEVER_COMBO - 1);
+    const after = applyJudgment(state, 'perfect');
+    expect(after.score - state.score).toBe(BASE_SCORE.perfect + comboBonus(FEVER_COMBO));
+  });
+
+  it('フィーバー中のスターノーツは4倍(2×2)', () => {
+    const state = buildCombo(FEVER_COMBO);
+    const after = applyJudgment(state, 'perfect', 'star');
+    expect(after.score - state.score).toBe(
+      BASE_SCORE.perfect * STAR_MULTIPLIER * FEVER_MULTIPLIER +
+        comboBonus(FEVER_COMBO + 1),
+    );
+  });
+
+  it('ミスでフィーバーが終わる(コンボ0)', () => {
+    const state = applyJudgment(buildCombo(FEVER_COMBO), 'miss');
+    expect(isFever(state.combo)).toBe(false);
   });
 });
 

@@ -5,6 +5,8 @@ export interface StageRecord {
   bestScore: number;
   bestRank: Rank;
   playCount: number;
+  /** パーフェクト(全ピタッ!)を達成した回数 */
+  perfectCount: number;
 }
 
 export type Records = Record<string, StageRecord>;
@@ -27,6 +29,7 @@ export function updateRecord(
   stageId: string,
   score: number,
   rank: Rank,
+  perfect = false,
 ): Records {
   const prev = records[stageId];
   return {
@@ -35,6 +38,7 @@ export function updateRecord(
       bestScore: Math.max(prev?.bestScore ?? 0, score),
       bestRank: prev ? betterRank(prev.bestRank, rank) : rank,
       playCount: (prev?.playCount ?? 0) + 1,
+      perfectCount: (prev?.perfectCount ?? 0) + (perfect ? 1 : 0),
     },
   };
 }
@@ -76,12 +80,16 @@ export function loadRecords(storage: StorageLike): Records {
     const records: Records = {};
     for (const [stageId, value] of Object.entries(parsed)) {
       if (typeof value !== 'object' || value === null) continue;
-      const { bestScore, bestRank, playCount } = value as Record<string, unknown>;
+      const { bestScore, bestRank, playCount, perfectCount } = value as Record<
+        string,
+        unknown
+      >;
       if (typeof bestScore !== 'number' || !isRank(bestRank)) continue;
       records[stageId] = {
         bestScore,
         bestRank,
         playCount: typeof playCount === 'number' ? playCount : 0,
+        perfectCount: typeof perfectCount === 'number' ? perfectCount : 0,
       };
     }
     return records;
