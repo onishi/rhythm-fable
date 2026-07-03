@@ -33,6 +33,19 @@
 - フィーバーもスターも💣も一人ずつ別判定。リザルトで 🥇🥈🥉 の順位発表
 - まねっこパロットととことんライブは1人専用
 
+### 🌐 オンラインたいせん (ネットワーク対戦)
+
+はなれた友だちと最大4人で同じ曲をスコア勝負! Cloudflare Workers + Durable Objects で動く。
+
+1. タイトルの「🌐 オンラインで あそぶ」→ なまえを入れて「へやを つくる」
+2. 表示された **あいことば**(4文字)を友だちに伝える
+3. 友だちは「へやに はいる」にあいことばを入力 → じゅんびOK!
+4. ホストがステージを選んで「みんなでスタート!」
+
+リズム判定は各自の端末内で行う(通信遅延の影響なし)。同期するのはロビー・開始合図・
+スコアの実況・最終結果だけなので、回線が多少遅くても快適にあそべる。
+オンラインでは全ステージ(まねっこパロット含む)を選べる。
+
 ### 🎪 とことんライブ (エンドレスモード)
 
 全ステージクリアで解放。各ステージから8小節ずつランダムに繋ぎ、ラウンドごとに
@@ -46,17 +59,34 @@
 
 ```bash
 npm install
-npm run dev        # 開発サーバー起動
+npm run dev        # 開発サーバー起動 (/api は wrangler dev に中継)
+npm run dev:worker # オンライン対戦サーバー (wrangler dev) をローカル起動
 npm test           # ユニットテスト (Jest)
 npm run test:coverage
-npm run build      # 型チェック + 本番ビルド
+npm run build      # 型チェック (app + worker) + 本番ビルド
 npm run preview    # ビルド結果の確認
 ```
+
+オンライン対戦込みでローカル確認する場合は `npm run build && npm run dev:worker` で
+http://localhost:8787 を開く(Worker が dist と API をまとめて配信する)。
+
+## Cloudflare へのデプロイ
+
+```bash
+npx wrangler login   # 初回のみ
+npm run deploy       # ビルドして Workers にデプロイ
+```
+
+`wrangler.jsonc` が設定ファイル。静的アセット(dist)を Workers Assets が配信し、
+`/api/*` だけ Worker が処理する。部屋(あいことば)ごとに Durable Object が1つ立ち、
+WebSocket でロビーとスコアを同期する。
 
 ## 技術構成
 
 - Vite + React 18 + TypeScript (strict)
 - BGM(ドラム・ベース・メロディ)と効果音は Web Audio API でリアルタイム合成(音源ファイル不要)
 - ゲームロジック(判定・スコア・譜面・伴奏生成・進行記録)は純粋関数として `src/game/` に分離し、Jest でテスト
+- オンライン対戦: Cloudflare Workers + Durable Objects(`worker/`)。プロトコルとルーム状態遷移は
+  `src/online/` の純粋関数としてクライアントと共有し、Jest でテスト
 
 詳細な仕様は [docs/game-design.md](docs/game-design.md) を参照。
