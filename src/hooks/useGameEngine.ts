@@ -134,6 +134,12 @@ export interface GameEngine {
   /** 引数はプレイヤー番号(省略時は1P) */
   hit: (player?: number) => void;
   backToTitle: () => void;
+  /**
+   * ユーザー操作のハンドラ内で呼び、オーディオの自動再生制限を解除する。
+   * オンライン対戦はサーバーの合図(非ジェスチャ)でゲームが始まるため、
+   * ロビー操作の時点で解錠しておかないと iOS などで無音になる。
+   */
+  unlockAudio: () => void;
 }
 
 export function useGameEngine(): GameEngine {
@@ -396,6 +402,8 @@ export function useGameEngine(): GameEngine {
       const chart = chartRef.current;
       const player = playersRef.current[playerIndex];
       if (!audio || !chart || !player || phaseRef.current !== 'playing') return;
+      // 入力はジェスチャ内なので、ここでも解錠を試みる(バックグラウンド復帰対策)
+      audio.unlock();
       const timeSec = audio.currentTime - startAtRef.current;
       if (timeSec < 0) return;
 
@@ -444,7 +452,11 @@ export function useGameEngine(): GameEngine {
     setSnapshot(initialSnapshot());
   }, []);
 
+  const unlockAudio = useCallback(() => {
+    (audioRef.current ??= new GameAudio()).unlock();
+  }, []);
+
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
-  return { snapshot, start, startEndless, startVersus, hit, backToTitle };
+  return { snapshot, start, startEndless, startVersus, hit, backToTitle, unlockAudio };
 }

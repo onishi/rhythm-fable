@@ -9,6 +9,7 @@ import { midiToFreq, type MusicEvent } from './music';
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private unlocked = false;
 
   ensure(): AudioContext {
     if (!this.ctx) {
@@ -18,6 +19,22 @@ export class GameAudio {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  /**
+   * ユーザー操作(タップ・キー入力)のハンドラ内で呼んで自動再生制限を解除する。
+   * iOS Safari はジェスチャ内で一度実再生しないと以後も音が出ないため、
+   * 初回は無音バッファを1発鳴らして解錠する。
+   */
+  unlock(): void {
+    const ctx = this.ensure();
+    if (this.unlocked && ctx.state === 'running') return;
+    const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    this.unlocked = true;
   }
 
   get currentTime(): number {
