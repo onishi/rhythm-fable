@@ -965,7 +965,7 @@ kbd {
 
 .versus-standing-row {
   display: grid;
-  grid-template-columns: 40px 44px 48px 1fr auto;
+  grid-template-columns: 40px 44px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   background: rgba(255, 255, 255, 0.85);
@@ -990,9 +990,12 @@ kbd {
 }
 
 .versus-standing-label {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--player-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .versus-standing-score {
@@ -1013,9 +1016,188 @@ kbd {
   }
 
   .versus-standing-row {
-    grid-template-columns: 32px 36px 40px 1fr auto;
+    grid-template-columns: 32px 36px minmax(0, 1fr) auto auto;
     padding: 8px 12px;
   }
+}
+
+/* ---------- オンライン対戦 ---------- */
+
+.online-screen {
+  justify-content: center;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.online-chip {
+  background: linear-gradient(90deg, #d8f0ff, #e6dcff);
+}
+
+.online-error {
+  font-size: 15px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.85);
+  color: #c62828;
+  padding: 8px 20px;
+  border-radius: 999px;
+}
+
+.online-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.online-input {
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  width: 180px;
+  padding: 8px 12px;
+  border: 3px solid rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  background: #fff;
+  color: #333;
+}
+
+.online-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.online-code-input {
+  letter-spacing: 6px;
+  text-transform: uppercase;
+}
+
+.online-menu {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.online-menu-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #4a2c14;
+  border-radius: 20px;
+  padding: 20px 28px;
+  min-width: 240px;
+}
+
+.online-menu-box h3 {
+  font-size: 20px;
+}
+
+.online-menu-box p {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.room-code {
+  font-size: 22px;
+  font-weight: 800;
+  background: #fff;
+  color: #333;
+  padding: 10px 28px;
+  border-radius: 16px;
+}
+
+.room-code strong {
+  font-size: 32px;
+  letter-spacing: 8px;
+  color: var(--accent);
+  margin-left: 8px;
+}
+
+.online-players {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+
+.online-player {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
+  border-radius: 12px;
+  padding: 8px 16px;
+  text-align: left;
+}
+
+.online-player[data-self='true'] {
+  border: 3px solid var(--accent);
+}
+
+.online-player-chara {
+  font-size: 28px;
+}
+
+.online-player-name {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.online-player-state {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+.online-stage-pick {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 760px;
+}
+
+.online-stage-chip {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 14px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.online-stage-chip-on {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.rivals {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rival {
+  font-size: 14px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.75);
+  color: #333;
+  border-left: 5px solid var(--player-accent);
+  border-radius: 999px;
+  padding: 4px 14px;
+  white-space: nowrap;
 }
 
 /* ---------- 観客 ---------- */

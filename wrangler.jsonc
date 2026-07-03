@@ -1,0 +1,18 @@
+// Cloudflare Workers の設定。デプロイは `npm run deploy`(要 `wrangler login`)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rhythm-fable",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    // /api/* だけ Worker に届け、それ以外は静的アセットを配信する
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "RoomDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDO"] }],
+  "observability": { "enabled": true }
+}

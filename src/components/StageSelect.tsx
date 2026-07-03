@@ -14,6 +14,7 @@ interface Props {
   onSelect: (index: number) => void;
   onStart: (index: number) => void;
   onPlayerCount: (count: number) => void;
+  onOnline: () => void;
 }
 
 const PLAYER_COUNT_LABELS = ['ひとり', 'ふたり', '3にん', '4にん'];
@@ -29,6 +30,7 @@ export function StageSelect({
   onSelect,
   onStart,
   onPlayerCount,
+  onOnline,
 }: Props) {
   const endlessIndex = stages.length;
   const versus = playerCount > 1;
@@ -58,6 +60,9 @@ export function StageSelect({
             </button>
           ))}
         </div>
+        <button type="button" className="player-count-chip online-chip" onClick={onOnline}>
+          🌐 オンラインで あそぶ
+        </button>
       </div>
 
       <div className="stage-list">

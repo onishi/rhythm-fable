@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameEngine } from './hooks/useGameEngine';
 import { StageSelect } from './components/StageSelect';
-import { GameScreen } from './components/GameScreen';
+import { GameScreen, type RivalView } from './components/GameScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { EndlessResultScreen } from './components/EndlessResultScreen';
 import { VersusResultScreen } from './components/VersusResultScreen';
+import { OnlineScreen } from './components/OnlineScreen';
+import { OnlineResultScreen } from './components/OnlineResultScreen';
 import { STAGES, STAGE_IDS } from './game/stages';
 import { isPerfectPlay } from './game/score';
 import { PLAYER_KEY_CODES, canPlayVersus } from './game/versus';
+import { useOnlineRoom } from './online/useOnlineRoom';
 import {
   isEndlessUnlocked,
   isNewRecord,
@@ -33,6 +36,8 @@ const ENDLESS_INDEX = STAGES.length;
 export function App() {
   const { snapshot, start, startEndless, startVersus, hit, backToTitle } = useGameEngine();
   const { phase } = snapshot;
+  const online = useOnlineRoom();
+  const { sendScore, sendFinish } = online;
 
   const [records, setRecords] = useState<Records>(() => loadRecords(window.localStorage));
   const [endlessRecord, setEndlessRecord] = useState<EndlessRecord | null>(() =>
@@ -40,11 +45,16 @@ export function App() {
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [playerCount, setPlayerCount] = useState(1);
+  const [titleView, setTitleView] = useState<'select' | 'online'>('select');
+  /** いまエンジンで動いているゲームがオンライン対戦か */
+  const [onlineGame, setOnlineGame] = useState(false);
   const [resultMeta, setResultMeta] = useState<ResultMeta>({
     newRecord: false,
     unlockedNext: false,
   });
   const resultProcessedRef = useRef(false);
+  const startSeqRef = useRef(0);
+  const finishSentRef = useRef(false);
 
   const unlocked = STAGES.map((_, i) => isStageUnlocked(records, STAGE_IDS, i));
   const endlessUnlocked = isEndlessUnlocked(records, STAGE_IDS);
@@ -52,6 +62,7 @@ export function App() {
   const startAt = useCallback(
     (index: number) => {
       resultProcessedRef.current = false;
+      setOnlineGame(false);
       if (index === ENDLESS_INDEX) {
         if (!endlessUnlocked || playerCount > 1) return;
         setSelectedIndex(index);
@@ -72,12 +83,38 @@ export function App() {
     [records, endlessUnlocked, playerCount, start, startEndless, startVersus],
   );
 
-  // リザルト確定時に記録を更新して保存する
+  // オンライン: サーバーの開始合図でゲームを始める(ホスト・メンバー共通)
   useEffect(() => {
-    if (phase !== 'result' || resultProcessedRef.current) return;
+    const signal = online.state.startSignal;
+    if (!signal || signal.seq === startSeqRef.current) return;
+    startSeqRef.current = signal.seq;
+    const stage = STAGES.find((s) => s.id === signal.stageId);
+    if (!stage) return;
+    resultProcessedRef.current = false;
+    finishSentRef.current = false;
+    setOnlineGame(true);
+    start(stage);
+  }, [online.state.startSignal, start]);
+
+  // オンライン: プレイ中はスコアを実況送信する
+  useEffect(() => {
+    if (!onlineGame || phase !== 'playing') return;
+    sendScore(snapshot.score.score, snapshot.score.combo);
+  }, [onlineGame, phase, snapshot.score.score, snapshot.score.combo, sendScore]);
+
+  // オンライン: たたき終わったら結果を送る
+  useEffect(() => {
+    if (!onlineGame || phase !== 'result' || finishSentRef.current) return;
+    finishSentRef.current = true;
+    sendFinish(snapshot.score.score, snapshot.score.maxCombo);
+  }, [onlineGame, phase, snapshot.score.score, snapshot.score.maxCombo, sendFinish]);
+
+  // リザルト確定時に記録を更新して保存する(オンラインは対象外)
+  useEffect(() => {
+    if (phase !== 'result' || resultProcessedRef.current || onlineGame) return;
     resultProcessedRef.current = true;
 
-    // 対戦はパーティーモードなので記録を残さない
+    // ローカル対戦はパーティーモードなので記録を残さない
     if (snapshot.mode === 'versus') {
       setResultMeta({ newRecord: false, unlockedNext: false });
       return;
@@ -114,7 +151,7 @@ export function App() {
       newRecord,
       unlockedNext: selectedIndex + 1 < STAGES.length && unlockedAfter && !unlockedBefore,
     });
-  }, [phase, snapshot, records, endlessRecord, selectedIndex]);
+  }, [phase, snapshot, records, endlessRecord, selectedIndex, onlineGame]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -133,7 +170,7 @@ export function App() {
         }
         return;
       }
-      if (phase === 'title') {
+      if (phase === 'title' && titleView === 'select') {
         if (e.code === 'ArrowLeft') {
           e.preventDefault();
           setSelectedIndex((i) => Math.max(0, i - 1));
@@ -146,18 +183,47 @@ export function App() {
         }
         return;
       }
-      // result
-      if (e.code === 'Space' && !e.repeat) {
+      // result(オンラインのリザルトはボタン操作のみ)
+      if (phase === 'result' && !onlineGame && e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         startAt(selectedIndex);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [phase, snapshot.mode, playerCount, hit, startAt, selectedIndex]);
+  }, [phase, titleView, snapshot.mode, playerCount, onlineGame, hit, startAt, selectedIndex]);
+
+  const rivals: RivalView[] | undefined =
+    onlineGame && online.state.room
+      ? online.state.room.players
+          .filter((p) => p.id !== online.state.selfId)
+          .map((p) => ({ id: p.id, name: p.name, slot: p.slot, score: p.score, combo: p.combo }))
+      : undefined;
 
   if (phase === 'playing' && snapshot.stage !== null) {
-    return <GameScreen snapshot={snapshot} stage={snapshot.stage} onHit={hit} />;
+    return (
+      <GameScreen snapshot={snapshot} stage={snapshot.stage} onHit={hit} rivals={rivals} />
+    );
+  }
+  if (phase === 'result' && onlineGame) {
+    return (
+      <OnlineResultScreen
+        score={snapshot.score}
+        online={online.state}
+        onLobby={() => {
+          online.returnToLobby();
+          setOnlineGame(false);
+          setTitleView('online');
+          backToTitle();
+        }}
+        onLeave={() => {
+          online.leave();
+          setOnlineGame(false);
+          setTitleView('select');
+          backToTitle();
+        }}
+      />
+    );
   }
   if (phase === 'result' && snapshot.mode === 'versus') {
     return (
@@ -193,6 +259,11 @@ export function App() {
       />
     );
   }
+  if (titleView === 'online') {
+    return (
+      <OnlineScreen online={online} stages={STAGES} onBack={() => setTitleView('select')} />
+    );
+  }
   return (
     <StageSelect
       stages={STAGES}
@@ -205,6 +276,7 @@ export function App() {
       onSelect={setSelectedIndex}
       onStart={startAt}
       onPlayerCount={setPlayerCount}
+      onOnline={() => setTitleView('online')}
     />
   );
 }

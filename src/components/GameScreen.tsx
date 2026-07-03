@@ -17,10 +17,21 @@ import {
 } from '../game/versus';
 import { JUDGMENT_LABEL } from '../game/types';
 
+/** オンライン対戦相手のスコア実況 */
+export interface RivalView {
+  id: string;
+  name: string;
+  slot: number;
+  score: number;
+  combo: number;
+}
+
 interface Props {
   snapshot: GameSnapshot;
   stage: StageDef;
   onHit: (player?: number) => void;
+  /** オンライン対戦中の相手たち(オフラインでは undefined) */
+  rivals?: readonly RivalView[];
 }
 
 /** ヒットゾーンの横位置(%) */
@@ -245,7 +256,7 @@ function footerText(stage: StageDef, isVersus: boolean, playerCount: number): st
   return 'スペース か タップで たたく! 💣 は たたかない!';
 }
 
-export function GameScreen({ snapshot, stage, onHit }: Props) {
+export function GameScreen({ snapshot, stage, onHit, rivals }: Props) {
   const { score, lastJudgment, countIn, beat, bpm, mode, lives, round, speedUp, players } =
     snapshot;
   const isVersus = mode === 'versus';
@@ -302,6 +313,20 @@ export function GameScreen({ snapshot, stage, onHit }: Props) {
           <div className="lives">
             {'❤️'.repeat(lives)}
             {'🖤'.repeat(Math.max(0, ENDLESS_LIVES - lives))}
+          </div>
+        )}
+        {rivals !== undefined && rivals.length > 0 && (
+          <div className="rivals">
+            {rivals.map((rival) => (
+              <span
+                key={rival.id}
+                className="rival"
+                style={{ '--player-accent': PLAYER_COLORS[rival.slot % 4] } as CSSProperties}
+              >
+                {PLAYER_CHARACTERS[rival.slot % 4]} {rival.name} {rival.score}
+                {rival.combo >= 2 ? ` 🔗${rival.combo}` : ''}
+              </span>
+            ))}
           </div>
         )}
       </div>
