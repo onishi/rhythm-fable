@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "worker",
+    "src/online/protocol.ts",
+    "src/online/room.ts",
+    "src/game/stages.ts",
+    "src/game/chart.ts",
+    "src/game/music.ts",
+    "src/game/versus.ts",
+    "src/game/types.ts"
+  ]
+}

@@ -2,8 +2,8 @@ import { BEATS_PER_MEASURE, COUNT_IN_BEATS } from '../src/game/chart';
 import { STAGES, STAGE_IDS, createStageChart } from '../src/game/stages';
 
 describe('ステージ定義', () => {
-  it('5ステージある', () => {
-    expect(STAGES).toHaveLength(5);
+  it('7ステージある', () => {
+    expect(STAGES).toHaveLength(7);
   });
 
   it('IDが一意', () => {
@@ -78,6 +78,28 @@ describe('ステージ定義', () => {
   it('echoステージにはおじゃまノーツがない(混乱防止)', () => {
     for (const stage of STAGES.filter((s) => s.gameSystem === 'echo')) {
       expect(stage.bombs.every((m) => m.length === 0)).toBe(true);
+    }
+  });
+
+  it('逆走ステージ(reverse)がある', () => {
+    expect(STAGES.some((s) => s.reverse === true)).toBe(true);
+  });
+
+  it('とつぜんステージ(suddenNotes)がある', () => {
+    expect(STAGES.some((s) => s.suddenNotes === true)).toBe(true);
+  });
+
+  it('ノーツ表示ギミックは flow ステージにだけ付く', () => {
+    for (const stage of STAGES) {
+      if (stage.reverse || stage.suddenNotes || stage.hideNotes) {
+        expect(stage.gameSystem ?? 'flow').toBe('flow');
+      }
+    }
+  });
+
+  it('hideNotes と suddenNotes は同時に付かない(表示が矛盾する)', () => {
+    for (const stage of STAGES) {
+      expect(stage.hideNotes && stage.suddenNotes).toBeFalsy();
     }
   });
 
