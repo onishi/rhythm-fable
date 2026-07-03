@@ -8,6 +8,11 @@ interface Props {
   online: OnlineRoom;
   stages: readonly StageDef[];
   onBack: () => void;
+  /**
+   * 画面のタップごとに呼ばれ、オーディオの自動再生制限を解除する。
+   * ゲーム開始はサーバー合図(非ジェスチャ)なので、ロビーのうちに解錠しておく。
+   */
+  onInteract: () => void;
 }
 
 const NAME_KEY = 'rhythm-fable-name-v1';
@@ -29,7 +34,7 @@ function saveName(name: string): void {
 }
 
 /** オンライン対戦のメニュー(部屋を作る/はいる)とロビー */
-export function OnlineScreen({ online, stages, onBack }: Props) {
+export function OnlineScreen({ online, stages, onBack, onInteract }: Props) {
   const { state } = online;
   const [name, setName] = useState(loadName);
   const [codeInput, setCodeInput] = useState('');
@@ -42,7 +47,7 @@ export function OnlineScreen({ online, stages, onBack }: Props) {
 
   if (state.status === 'connecting') {
     return (
-      <div className="screen online-screen">
+      <div className="screen online-screen" onPointerDown={onInteract}>
         <h2 className="result-heading">🌐 せつぞくちゅう…</h2>
       </div>
     );
@@ -56,7 +61,7 @@ export function OnlineScreen({ online, stages, onBack }: Props) {
       room.players.length >= 2 &&
       room.players.every((p) => p.id === room.hostId || p.ready);
     return (
-      <div className="screen online-screen">
+      <div className="screen online-screen" onPointerDown={onInteract}>
         <h2 className="result-heading">🌐 オンラインたいせん</h2>
         <div className="room-code">
           あいことば: <strong>{room.code}</strong>
@@ -134,7 +139,7 @@ export function OnlineScreen({ online, stages, onBack }: Props) {
 
   // idle(メニュー)
   return (
-    <div className="screen online-screen">
+    <div className="screen online-screen" onPointerDown={onInteract}>
       <h2 className="result-heading">🌐 オンラインで あそぶ</h2>
       <p className="title-subtitle">
         はなれた おともだちと おなじ きょくで スコアしょうぶ!

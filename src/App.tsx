@@ -34,7 +34,8 @@ interface ResultMeta {
 const ENDLESS_INDEX = STAGES.length;
 
 export function App() {
-  const { snapshot, start, startEndless, startVersus, hit, backToTitle } = useGameEngine();
+  const { snapshot, start, startEndless, startVersus, hit, backToTitle, unlockAudio } =
+    useGameEngine();
   const { phase } = snapshot;
   const online = useOnlineRoom();
   const { sendScore, sendFinish } = online;
@@ -261,7 +262,12 @@ export function App() {
   }
   if (titleView === 'online') {
     return (
-      <OnlineScreen online={online} stages={STAGES} onBack={() => setTitleView('select')} />
+      <OnlineScreen
+        online={online}
+        stages={STAGES}
+        onBack={() => setTitleView('select')}
+        onInteract={unlockAudio}
+      />
     );
   }
   return (
