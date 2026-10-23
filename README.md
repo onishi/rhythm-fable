@@ -83,7 +83,8 @@ WebSocket でロビーとスコアを同期する。
 
 ## 技術構成
 
-- Vite + React 18 + TypeScript (strict)
+- Vite 8 + React 19 + TypeScript 6 (strict)
+  - TypeScript 7 は ts-jest が未対応のため 6.x 系を使用
 - BGM(ドラム・ベース・メロディ)と効果音は Web Audio API でリアルタイム合成(音源ファイル不要)
 - ゲームロジック(判定・スコア・譜面・伴奏生成・進行記録)は純粋関数として `src/game/` に分離し、Jest でテスト
 - オンライン対戦: Cloudflare Workers + Durable Objects(`worker/`)。プロトコルとルーム状態遷移は
